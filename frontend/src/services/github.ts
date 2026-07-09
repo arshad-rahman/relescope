@@ -1,15 +1,15 @@
+import { API_BASE_URL } from "../config/api";
+
 import type {
   RepositoryValidationRequest,
   RepositoryValidationResponse,
 } from "../types/repository";
 
-const API_URL = "http://127.0.0.1:8000";
-
 export async function validateRepository(
   payload: RepositoryValidationRequest
 ): Promise<RepositoryValidationResponse> {
   const response = await fetch(
-    `${API_URL}/api/repository/validate`,
+    `${API_BASE_URL}/api/repository/validate`,
     {
       method: "POST",
       headers: {
