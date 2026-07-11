@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.github import router as github_router
 from app.routers.release import router as release_router
+from app.routers.saved_release import (
+    router as saved_release_router,
+)
 from app.routers.repository import (
     router as repository_router,
 )
@@ -41,6 +44,12 @@ app.include_router(
     release_router,
     prefix="/api/releases",
     tags=["Releases"],
+)
+
+app.include_router(
+    saved_release_router,
+    prefix="/api/saved-releases",
+    tags=["Saved Releases"],
 )
 
 
