@@ -9,6 +9,7 @@ import Navbar from "../components/layout/Navbar";
 import BranchSelector from "../components/dashboard/BranchSelector";
 import CommitList from "../components/dashboard/CommitList";
 import GenerateButton from "../components/dashboard/GenerateButton";
+import ReleaseGenerationLoader from "../components/dashboard/ReleaseGenerationLoader";
 import ReleaseConfiguration from "../components/dashboard/ReleaseConfiguration";
 import EditableReleasePreview from "../components/dashboard/EditableReleasePreview";
 import RepositorySelector from "../components/dashboard/RepositorySelector";
@@ -507,10 +508,24 @@ export default function Dashboard() {
           </div>
 
 
-          <EditableReleasePreview
-            releaseNotes={releaseNotes}
-            onChange={setReleaseNotes}
-          />
+          {loading ? (
+            <ReleaseGenerationLoader
+              repository={
+                selectedRepository?.fullName ??
+                repositoryFullName
+              }
+              commitCount={
+                selectedCommits.length
+              }
+              mode={generateFor}
+              developer={selectedAuthor}
+            />
+          ) : (
+            <EditableReleasePreview
+              releaseNotes={releaseNotes}
+              onChange={setReleaseNotes}
+            />
+          )}
         </div>
       </main>
     </div>
