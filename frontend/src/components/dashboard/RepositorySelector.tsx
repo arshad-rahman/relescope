@@ -1,4 +1,8 @@
-import type { Repository } from "../../types/github";
+import BeautifulSelect from "../ui/BeautifulSelect";
+
+import type {
+  Repository,
+} from "../../types/github";
 
 type Props = {
   repositories: Repository[];
@@ -15,36 +19,43 @@ export default function RepositorySelector({
   value,
   onChange,
 }: Props) {
+  const options = repositories.map(
+    (repository) => ({
+      value: repository.fullName,
+      label:
+        repository.fullName +
+        (
+          repository.private
+            ? " · Private"
+            : ""
+        ),
+    }),
+  );
+
+  const placeholder = loading
+    ? "Loading repositories..."
+    : repositories.length === 0
+      ? "No repositories available"
+      : "Select a repository";
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-slate-300">
         Repository
       </label>
 
-      <select
+      <BeautifulSelect
+        id="repository-selector"
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
+        options={options}
+        placeholder={placeholder}
+        ariaLabel="Select GitHub repository"
+        disabled={
+          loading ||
+          repositories.length === 0
         }
-        disabled={loading}
-        className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="">
-          {loading
-            ? "Loading repositories..."
-            : "Select a repository"}
-        </option>
-
-        {repositories.map((repository) => (
-          <option
-            key={repository.id}
-            value={repository.fullName}
-          >
-            {repository.fullName}
-            {repository.private ? " · Private" : ""}
-          </option>
-        ))}
-      </select>
+        onValueChange={onChange}
+      />
 
       {error && (
         <p className="text-sm text-red-400">

@@ -5,6 +5,8 @@ import {
   type ChangeEvent,
 } from "react";
 
+import BeautifulSelect from "../ui/BeautifulSelect";
+
 import { getCommits } from "../../services/github";
 
 import type { Commit } from "../../types/github";
@@ -15,6 +17,30 @@ type Props = {
   branch: string;
   onSelectionChange: (commits: Commit[]) => void;
 };
+
+type AuthorOption = {
+  value: string;
+  label: string;
+};
+
+function getAuthorIdentity(
+  author: string,
+  authorEmail: string,
+): string {
+  const normalizedName = author
+    .trim()
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\s._-]+/g, "");
+
+  if (normalizedName) {
+    return `name:${normalizedName}`;
+  }
+
+  return `email:${authorEmail
+    .trim()
+    .toLocaleLowerCase()}`;
+}
 
 export default function CommitList({
   token,
@@ -103,13 +129,62 @@ export default function CommitList({
     branch,
   ]);
 
-  const authors = useMemo(() => {
-    return Array.from(
-      new Set(
-        commits.map((commit) => commit.author),
-      ),
-    ).sort();
-  }, [commits]);
+  const authorOptions =
+    useMemo<AuthorOption[]>(() => {
+      const authorGroups = new Map<
+        string,
+        Map<string, number>
+      >();
+
+      for (const commit of commits) {
+        const identity = getAuthorIdentity(
+          commit.author,
+          commit.authorEmail,
+        );
+
+        const displayName =
+          commit.author.trim() ||
+          commit.authorEmail.trim() ||
+          "Unknown author";
+
+        const names =
+          authorGroups.get(identity) ??
+          new Map<string, number>();
+
+        names.set(
+          displayName,
+          (names.get(displayName) ?? 0) + 1,
+        );
+
+        authorGroups.set(identity, names);
+      }
+
+      return Array.from(
+        authorGroups.entries(),
+      )
+        .map(([value, names]) => {
+          const label =
+            Array.from(names.entries())
+              .sort(
+                (
+                  [nameA, countA],
+                  [nameB, countB],
+                ) =>
+                  countB - countA ||
+                  nameA.localeCompare(nameB),
+              )[0]?.[0] ?? "Unknown author";
+
+          return {
+            value,
+            label,
+          };
+        })
+        .sort((optionA, optionB) =>
+          optionA.label.localeCompare(
+            optionB.label,
+          ),
+        );
+    }, [commits]);
 
   const visibleCommits = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -117,7 +192,10 @@ export default function CommitList({
     return commits.filter((commit) => {
       const matchesAuthor =
         authorFilter === "all" ||
-        commit.author === authorFilter;
+        getAuthorIdentity(
+          commit.author,
+          commit.authorEmail,
+        ) === authorFilter;
 
       const matchesSearch =
         !query ||
@@ -199,9 +277,9 @@ export default function CommitList({
   }
 
   function handleAuthorChange(
-    event: ChangeEvent<HTMLSelectElement>,
+    value: string,
   ) {
-    setAuthorFilter(event.target.value);
+    setAuthorFilter(value);
     setSelectedIds([]);
   }
 
@@ -274,24 +352,22 @@ export default function CommitList({
               Author
             </label>
 
-            <select
+            <BeautifulSelect
+              id="commit-author-filter"
               value={authorFilter}
-              onChange={handleAuthorChange}
-              className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-cyan-500"
-            >
-              <option value="all">
-                All authors
-              </option>
-
-              {authors.map((author) => (
-                <option
-                  key={author}
-                  value={author}
-                >
-                  {author}
-                </option>
-              ))}
-            </select>
+              options={[
+                {
+                  value: "all",
+                  label: "All authors",
+                },
+                ...authorOptions,
+              ]}
+              placeholder="Select author"
+              ariaLabel="Filter commits by author"
+              onValueChange={
+                handleAuthorChange
+              }
+            />
           </div>
 
           <div>
