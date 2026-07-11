@@ -1,4 +1,4 @@
-# ReleasePilot
+# Relescope
 
 AI-powered release notes from Git history.
 
