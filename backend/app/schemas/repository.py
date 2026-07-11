@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class RepositoryValidateRequest(BaseModel):
-    url: str = Field(..., examples=["https://github.com/arshad-rahman/releasepilot"])
+    url: str = Field(..., examples=["https://github.com/arshad-rahman/relescope"])
     token: str = Field(..., min_length=10)
     remember_token: bool = False
 

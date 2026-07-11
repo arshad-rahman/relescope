@@ -19,10 +19,10 @@ type AuthContextValue = {
 };
 
 const TOKEN_STORAGE_KEY =
-  "releasepilot.github.token";
+  "relescope.github.token";
 
 const USER_STORAGE_KEY =
-  "releasepilot.github.user";
+  "relescope.github.user";
 
 const AuthContext =
   createContext<AuthContextValue | null>(null);

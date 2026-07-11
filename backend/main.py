@@ -9,7 +9,7 @@ from app.routers.repository import (
 
 
 app = FastAPI(
-    title="ReleasePilot API",
+    title="Relescope API",
     version="0.1.0",
 )
 
@@ -47,7 +47,7 @@ app.include_router(
 @app.get("/")
 def root():
     return {
-        "message": "ReleasePilot backend is running",
+        "message": "Relescope backend is running",
     }
 
 

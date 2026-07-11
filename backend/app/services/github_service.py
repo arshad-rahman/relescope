@@ -27,7 +27,7 @@ def _github_headers(token: str) -> dict[str, str]:
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "ReleasePilot",
+        "User-Agent": "Relescope",
     }
 
 

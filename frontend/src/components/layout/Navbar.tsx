@@ -3,7 +3,7 @@ export default function Navbar() {
     <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
       <div className="flex items-center gap-8">
         <h1 className="text-xl font-bold text-white">
-          ReleasePilot
+          Relescope
         </h1>
 
         <nav className="hidden items-center gap-6 text-sm text-slate-400 md:flex">
