@@ -10,7 +10,7 @@ import BranchSelector from "../components/dashboard/BranchSelector";
 import CommitList from "../components/dashboard/CommitList";
 import GenerateButton from "../components/dashboard/GenerateButton";
 import ReleaseConfiguration from "../components/dashboard/ReleaseConfiguration";
-import ReleasePreview from "../components/dashboard/ReleasePreview";
+import EditableReleasePreview from "../components/dashboard/EditableReleasePreview";
 import RepositorySelector from "../components/dashboard/RepositorySelector";
 
 import { useAuth } from "../context/AuthContext";
@@ -456,8 +456,9 @@ export default function Dashboard() {
           </div>
 
 
-          <ReleasePreview
+          <EditableReleasePreview
             releaseNotes={releaseNotes}
+            onChange={setReleaseNotes}
           />
         </div>
       </main>
