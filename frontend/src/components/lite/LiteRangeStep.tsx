@@ -1,81 +1,47 @@
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   CalendarDays,
   Check,
   Clock3,
   GitCommit,
+  LoaderCircle,
 } from "lucide-react";
 
-export type LiteReleaseRange =
-  | "7d"
-  | "14d"
-  | "30d"
-  | "10c"
-  | "25c";
+import {
+  liteRangeOptions,
+  type LiteReleaseRange,
+} from "../../utils/liteRelease";
 
 type Props = {
   repository: string;
   branch: string;
-  value: LiteReleaseRange;
+  value: LiteReleaseRange | null;
+  loading: boolean;
+  error: string;
   onChange: (
     value: LiteReleaseRange,
   ) => void;
   onBack: () => void;
+  onContinue: () => void;
 };
-
-const rangeOptions: Array<{
-  value: LiteReleaseRange;
-  title: string;
-  description: string;
-  type: "days" | "commits";
-}> = [
-  {
-    value: "7d",
-    title: "Last 7 days",
-    description:
-      "Best for weekly releases and sprint summaries.",
-    type: "days",
-  },
-  {
-    value: "14d",
-    title: "Last 14 days",
-    description:
-      "Capture work completed across two weeks.",
-    type: "days",
-  },
-  {
-    value: "30d",
-    title: "Last 30 days",
-    description:
-      "Create a broader monthly release summary.",
-    type: "days",
-  },
-  {
-    value: "10c",
-    title: "Latest 10 commits",
-    description:
-      "Use the ten most recent commits on the branch.",
-    type: "commits",
-  },
-  {
-    value: "25c",
-    title: "Latest 25 commits",
-    description:
-      "Include a larger set of recent repository changes.",
-    type: "commits",
-  },
-];
 
 export default function LiteRangeStep({
   repository,
   branch,
   value,
+  loading,
+  error,
   onChange,
   onBack,
+  onContinue,
 }: Props) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-slate-900/70 p-7 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl sm:p-9">
+    <section
+      aria-busy={loading}
+      className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-slate-900/70 p-7 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl sm:p-9"
+    >
       <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-blue-400/[0.08] blur-3xl" />
 
       <div className="relative">
@@ -117,7 +83,7 @@ export default function LiteRangeStep({
         </div>
 
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
-          {rangeOptions.map((option) => {
+          {liteRangeOptions.map((option) => {
             const selected =
               option.value === value;
 
@@ -125,14 +91,15 @@ export default function LiteRangeStep({
               <button
                 key={option.value}
                 type="button"
+                disabled={loading}
                 aria-pressed={selected}
                 onClick={() =>
                   onChange(option.value)
                 }
                 className={
                   selected
-                    ? "relative rounded-2xl border border-cyan-400/30 bg-cyan-400/[0.08] p-5 text-left shadow-lg shadow-cyan-950/10 transition"
-                    : "relative rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 text-left transition hover:border-cyan-400/20 hover:bg-white/[0.045]"
+                    ? "relative rounded-2xl border border-cyan-400/30 bg-cyan-400/[0.08] p-5 text-left shadow-lg shadow-cyan-950/10 transition disabled:cursor-wait disabled:opacity-60"
+                    : "relative rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 text-left transition hover:border-cyan-400/20 hover:bg-white/[0.045] disabled:cursor-wait disabled:opacity-60"
                 }
               >
                 <div className="flex items-start justify-between gap-4">
@@ -175,11 +142,20 @@ export default function LiteRangeStep({
           })}
         </div>
 
+        {error && (
+          <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/[0.08] px-4 py-3 text-sm text-red-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+
+            <p>{error}</p>
+          </div>
+        )}
+
         <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
           <button
             type="button"
+            disabled={loading}
             onClick={onBack}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-4 font-semibold text-slate-300 transition hover:bg-white/[0.08] hover:text-white sm:w-auto"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-4 font-semibold text-slate-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-wait disabled:opacity-50 sm:w-auto"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -187,17 +163,35 @@ export default function LiteRangeStep({
 
           <button
             type="button"
-            disabled
-            className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-semibold text-slate-950 opacity-45"
+            disabled={
+              loading || value === null
+            }
+            onClick={onContinue}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-semibold text-slate-950 transition duration-300 hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-lg hover:shadow-cyan-400/15 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-60"
           >
-            Continue to review
-            <ArrowRight className="h-4 w-4" />
+            {loading ? (
+              <>
+                <LoaderCircle className="h-5 w-5 animate-spin" />
+                Finding matching commits...
+              </>
+            ) : value === null ? (
+              <>
+                Select a release range
+                <ArrowRight className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                Analyse commits and continue
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </div>
 
         <p className="mt-3 text-center text-xs text-slate-600">
-          Automatic commit loading will be connected
-          in the next Lite milestone.
+          {value === null
+            ? "Choose one release range to continue."
+            : "Lite analyses up to 100 recent commits from the selected branch."}
         </p>
       </div>
     </section>

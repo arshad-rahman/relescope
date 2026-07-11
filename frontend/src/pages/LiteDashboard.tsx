@@ -16,11 +16,9 @@ import {
 
 import Background from "../components/layout/Background";
 
-import LiteRangeStep, {
-  type LiteReleaseRange,
-} from "../components/lite/LiteRangeStep";
-
+import LiteRangeStep from "../components/lite/LiteRangeStep";
 import LiteRepositoryStep from "../components/lite/LiteRepositoryStep";
+import LiteReviewStep from "../components/lite/LiteReviewStep";
 import LiteStepProgress from "../components/lite/LiteStepProgress";
 
 import {
@@ -28,12 +26,22 @@ import {
 } from "../context/AuthContext";
 
 import {
+  getCommits,
   getRepositories,
 } from "../services/github";
 
 import type {
+  Commit,
   Repository,
 } from "../types/github";
+
+import {
+  getLiteContributors,
+  getLiteRangeLabel,
+  selectCommitsForLiteRange,
+  suggestLiteReleaseTitle,
+  type LiteReleaseRange,
+} from "../utils/liteRelease";
 
 const automaticFeatures = [
   "Select matching commits automatically",
@@ -53,7 +61,7 @@ export default function LiteDashboard() {
   const [
     currentStep,
     setCurrentStep,
-  ] = useState<1 | 2>(1);
+  ] = useState<1 | 2 | 3>(1);
 
   const [
     repositories,
@@ -83,7 +91,34 @@ export default function LiteDashboard() {
   const [
     releaseRange,
     setReleaseRange,
-  ] = useState<LiteReleaseRange>("7d");
+  ] = useState<LiteReleaseRange | null>(
+    null,
+  );
+
+  const [
+    selectedCommits,
+    setSelectedCommits,
+  ] = useState<Commit[]>([]);
+
+  const [
+    commitsLoading,
+    setCommitsLoading,
+  ] = useState(false);
+
+  const [
+    commitsError,
+    setCommitsError,
+  ] = useState("");
+
+  const [
+    releaseTitle,
+    setReleaseTitle,
+  ] = useState("Weekly Release");
+
+  const [
+    version,
+    setVersion,
+  ] = useState("v1.0.0");
 
   useEffect(() => {
     let active = true;
@@ -139,6 +174,18 @@ export default function LiteDashboard() {
       repositoryFullName,
     ]);
 
+  const contributors =
+    useMemo(() => {
+      return getLiteContributors(
+        selectedCommits,
+      );
+    }, [selectedCommits]);
+
+  function resetCommitSelection() {
+    setSelectedCommits([]);
+    setCommitsError("");
+  }
+
   function handleRepositoryChange(
     nextRepositoryFullName: string,
   ) {
@@ -157,6 +204,7 @@ export default function LiteDashboard() {
       repository?.defaultBranch ?? "",
     );
 
+    resetCommitSelection();
     setCurrentStep(1);
   }
 
@@ -164,7 +212,19 @@ export default function LiteDashboard() {
     nextBranch: string,
   ) {
     setBranch(nextBranch);
+    resetCommitSelection();
     setCurrentStep(1);
+  }
+
+  function handleReleaseRangeChange(
+    nextRange: LiteReleaseRange,
+  ) {
+    setReleaseRange(nextRange);
+    setReleaseTitle(
+      suggestLiteReleaseTitle(nextRange),
+    );
+
+    resetCommitSelection();
   }
 
   function continueToRange() {
@@ -173,6 +233,55 @@ export default function LiteDashboard() {
     }
 
     setCurrentStep(2);
+  }
+
+  async function continueToReview() {
+    if (
+      !selectedRepository ||
+      !branch ||
+      !releaseRange
+    ) {
+      return;
+    }
+
+    setCommitsLoading(true);
+    setCommitsError("");
+    setSelectedCommits([]);
+
+    try {
+      const commits = await getCommits(
+        token,
+        selectedRepository.fullName,
+        branch,
+      );
+
+      const matchingCommits =
+        selectCommitsForLiteRange(
+          commits,
+          releaseRange,
+        );
+
+      if (matchingCommits.length === 0) {
+        setCommitsError(
+          `No commits were found for ${getLiteRangeLabel(
+            releaseRange,
+          )}. Choose another range or branch.`,
+        );
+
+        return;
+      }
+
+      setSelectedCommits(matchingCommits);
+      setCurrentStep(3);
+    } catch (requestError) {
+      setCommitsError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to load repository commits.",
+      );
+    } finally {
+      setCommitsLoading(false);
+    }
   }
 
   return (
@@ -266,7 +375,7 @@ export default function LiteDashboard() {
                 }
                 onContinue={continueToRange}
               />
-            ) : (
+            ) : currentStep === 2 ? (
               <LiteRangeStep
                 repository={
                   selectedRepository?.fullName ??
@@ -274,9 +383,38 @@ export default function LiteDashboard() {
                 }
                 branch={branch}
                 value={releaseRange}
-                onChange={setReleaseRange}
+                loading={commitsLoading}
+                error={commitsError}
+                onChange={
+                  handleReleaseRangeChange
+                }
                 onBack={() =>
                   setCurrentStep(1)
+                }
+                onContinue={continueToReview}
+              />
+            ) : (
+              <LiteReviewStep
+                repository={
+                  selectedRepository?.fullName ??
+                  repositoryFullName
+                }
+                branch={branch}
+                releaseRange={
+                  releaseRange ?? "7d"
+                }
+                selectedCommits={
+                  selectedCommits
+                }
+                contributors={contributors}
+                releaseTitle={releaseTitle}
+                version={version}
+                onReleaseTitleChange={
+                  setReleaseTitle
+                }
+                onVersionChange={setVersion}
+                onBack={() =>
+                  setCurrentStep(2)
                 }
               />
             )}
@@ -307,9 +445,33 @@ export default function LiteDashboard() {
                     <p>
                       Range:{" "}
                       <span className="text-cyan-300">
-                        {releaseRange}
+                        {releaseRange
+                          ? getLiteRangeLabel(
+                              releaseRange,
+                            )
+                          : "Not selected"}
                       </span>
                     </p>
+
+                    {selectedCommits.length > 0 && (
+                      <>
+                        <p>
+                          Commits:{" "}
+                          <span className="text-cyan-300">
+                            {
+                              selectedCommits.length
+                            }
+                          </span>
+                        </p>
+
+                        <p>
+                          Contributors:{" "}
+                          <span className="text-cyan-300">
+                            {contributors.length}
+                          </span>
+                        </p>
+                      </>
+                    )}
                   </div>
                 </section>
               )}
