@@ -1,9 +1,11 @@
 import {
-  ArrowRight,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
   Check,
-  Clock3,
-  GitBranch,
-  LockKeyhole,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
@@ -12,42 +14,26 @@ import {
   Link,
 } from "react-router-dom";
 
-import {
-  FaGithub,
-} from "react-icons/fa";
-
 import Background from "../components/layout/Background";
+
+import LiteRangeStep, {
+  type LiteReleaseRange,
+} from "../components/lite/LiteRangeStep";
+
+import LiteRepositoryStep from "../components/lite/LiteRepositoryStep";
+import LiteStepProgress from "../components/lite/LiteStepProgress";
 
 import {
   useAuth,
 } from "../context/AuthContext";
 
-const steps = [
-  {
-    number: "01",
-    title: "Repository",
-    description: "Choose the source",
-    active: true,
-  },
-  {
-    number: "02",
-    title: "Release range",
-    description: "Select the timeframe",
-    active: false,
-  },
-  {
-    number: "03",
-    title: "Review",
-    description: "Confirm smart defaults",
-    active: false,
-  },
-  {
-    number: "04",
-    title: "Generate",
-    description: "Create and export",
-    active: false,
-  },
-];
+import {
+  getRepositories,
+} from "../services/github";
+
+import type {
+  Repository,
+} from "../types/github";
 
 const automaticFeatures = [
   "Select matching commits automatically",
@@ -59,9 +45,135 @@ const automaticFeatures = [
 
 export default function LiteDashboard() {
   const {
+    token,
     user,
     logout,
   } = useAuth();
+
+  const [
+    currentStep,
+    setCurrentStep,
+  ] = useState<1 | 2>(1);
+
+  const [
+    repositories,
+    setRepositories,
+  ] = useState<Repository[]>([]);
+
+  const [
+    repositoriesLoading,
+    setRepositoriesLoading,
+  ] = useState(true);
+
+  const [
+    repositoriesError,
+    setRepositoriesError,
+  ] = useState("");
+
+  const [
+    repositoryFullName,
+    setRepositoryFullName,
+  ] = useState("");
+
+  const [
+    branch,
+    setBranch,
+  ] = useState("");
+
+  const [
+    releaseRange,
+    setReleaseRange,
+  ] = useState<LiteReleaseRange>("7d");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRepositories() {
+      setRepositoriesLoading(true);
+      setRepositoriesError("");
+
+      try {
+        const data =
+          await getRepositories(token);
+
+        if (!active) {
+          return;
+        }
+
+        setRepositories(data);
+      } catch (requestError) {
+        if (!active) {
+          return;
+        }
+
+        setRepositories([]);
+
+        setRepositoriesError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to load repositories.",
+        );
+      } finally {
+        if (active) {
+          setRepositoriesLoading(false);
+        }
+      }
+    }
+
+    void loadRepositories();
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  const selectedRepository =
+    useMemo(() => {
+      return repositories.find(
+        (repository) =>
+          repository.fullName ===
+          repositoryFullName,
+      );
+    }, [
+      repositories,
+      repositoryFullName,
+    ]);
+
+  function handleRepositoryChange(
+    nextRepositoryFullName: string,
+  ) {
+    const repository =
+      repositories.find(
+        (item) =>
+          item.fullName ===
+          nextRepositoryFullName,
+      );
+
+    setRepositoryFullName(
+      nextRepositoryFullName,
+    );
+
+    setBranch(
+      repository?.defaultBranch ?? "",
+    );
+
+    setCurrentStep(1);
+  }
+
+  function handleBranchChange(
+    nextBranch: string,
+  ) {
+    setBranch(nextBranch);
+    setCurrentStep(1);
+  }
+
+  function continueToRange() {
+    if (!selectedRepository || !branch) {
+      return;
+    }
+
+    setCurrentStep(2);
+  }
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#020617] text-white">
@@ -127,147 +239,81 @@ export default function LiteDashboard() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-3 md:grid-cols-4">
-            {steps.map((step) => (
-              <div
-                key={step.number}
-                className={
-                  step.active
-                    ? "rounded-2xl border border-cyan-400/25 bg-cyan-400/[0.08] p-4 shadow-lg shadow-cyan-950/10"
-                    : "rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4"
-                }
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={
-                      step.active
-                        ? "text-xs font-bold text-cyan-300"
-                        : "text-xs font-bold text-slate-600"
-                    }
-                  >
-                    {step.number}
-                  </span>
-
-                  {step.active && (
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
-                  )}
-                </div>
-
-                <p
-                  className={
-                    step.active
-                      ? "mt-3 text-sm font-semibold text-white"
-                      : "mt-3 text-sm font-semibold text-slate-400"
-                  }
-                >
-                  {step.title}
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-slate-600">
-                  {step.description}
-                </p>
-              </div>
-            ))}
-          </div>
+          <LiteStepProgress
+            currentStep={currentStep}
+          />
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            <section className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-slate-900/70 p-7 shadow-2xl shadow-cyan-950/10 backdrop-blur-xl sm:p-9">
-              <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/[0.08] blur-3xl" />
-
-              <div className="relative">
-                <div className="flex flex-col gap-5 border-b border-white/10 pb-7 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-400">
-                      Step 1 of 4
-                    </p>
-
-                    <h2 className="mt-3 text-2xl font-bold">
-                      Select your repository
-                    </h2>
-
-                    <p className="mt-2 max-w-xl leading-7 text-slate-400">
-                      Lite will use the default branch
-                      automatically. You can change it
-                      later when needed.
-                    </p>
-                  </div>
-
-                  <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-amber-400/15 bg-amber-400/[0.06] px-3 py-1.5 text-xs text-amber-200">
-                    <LockKeyhole className="h-3.5 w-3.5" />
-                    Shell preview
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-5">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Repository
-                    </label>
-
-                    <div className="flex min-h-14 items-center justify-between rounded-xl border border-white/10 bg-slate-950/70 px-4 text-slate-500">
-                      <span className="flex items-center gap-3">
-                        <FaGithub className="h-5 w-5" />
-                        Select a GitHub repository
-                      </span>
-
-                      <span className="text-xs">
-                        Coming next
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Branch
-                    </label>
-
-                    <div className="flex min-h-14 items-center justify-between rounded-xl border border-white/[0.07] bg-slate-950/40 px-4 text-slate-600">
-                      <span className="flex items-center gap-3">
-                        <GitBranch className="h-5 w-5" />
-                        Default branch selected automatically
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.05] p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300">
-                        <Clock3 className="h-5 w-5" />
-                      </div>
-
-                      <div>
-                        <p className="font-semibold text-slate-200">
-                          Release range comes next
-                        </p>
-
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          The next step will include
-                          Last 7 Days, Last 14 Days,
-                          Last 30 Days and latest-commit
-                          presets.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled
-                  className="mt-8 flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-semibold text-slate-950 opacity-45"
-                >
-                  Continue to release range
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-
-                <p className="mt-3 text-center text-xs text-slate-600">
-                  Repository integration will be connected
-                  in the next Lite milestone.
-                </p>
-              </div>
-            </section>
+            {currentStep === 1 ? (
+              <LiteRepositoryStep
+                token={token}
+                repositories={repositories}
+                repositoriesLoading={
+                  repositoriesLoading
+                }
+                repositoriesError={
+                  repositoriesError
+                }
+                repositoryFullName={
+                  repositoryFullName
+                }
+                branch={branch}
+                onRepositoryChange={
+                  handleRepositoryChange
+                }
+                onBranchChange={
+                  handleBranchChange
+                }
+                onContinue={continueToRange}
+              />
+            ) : (
+              <LiteRangeStep
+                repository={
+                  selectedRepository?.fullName ??
+                  repositoryFullName
+                }
+                branch={branch}
+                value={releaseRange}
+                onChange={setReleaseRange}
+                onBack={() =>
+                  setCurrentStep(1)
+                }
+              />
+            )}
 
             <aside className="space-y-6">
+              {selectedRepository && (
+                <section className="rounded-3xl border border-cyan-400/15 bg-cyan-400/[0.04] p-7">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-300">
+                    Current selection
+                  </p>
+
+                  <h2 className="mt-3 truncate text-xl font-bold">
+                    {selectedRepository.name}
+                  </h2>
+
+                  <p className="mt-2 truncate text-sm text-slate-500">
+                    {selectedRepository.fullName}
+                  </p>
+
+                  <div className="mt-5 space-y-2 text-sm text-slate-300">
+                    <p>
+                      Branch:{" "}
+                      <span className="text-cyan-300">
+                        {branch}
+                      </span>
+                    </p>
+
+                    <p>
+                      Range:{" "}
+                      <span className="text-cyan-300">
+                        {releaseRange}
+                      </span>
+                    </p>
+                  </div>
+                </section>
+              )}
+
               <section className="rounded-3xl border border-white/10 bg-white/[0.035] p-7 backdrop-blur-xl">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] text-cyan-300">
                   <WandSparkles className="h-6 w-6" />
@@ -284,20 +330,22 @@ export default function LiteDashboard() {
                 </p>
 
                 <div className="mt-6 space-y-4">
-                  {automaticFeatures.map((feature) => (
-                    <div
-                      key={feature}
-                      className="flex items-start gap-3"
-                    >
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-300">
-                        <Check className="h-3 w-3" />
-                      </span>
+                  {automaticFeatures.map(
+                    (feature) => (
+                      <div
+                        key={feature}
+                        className="flex items-start gap-3"
+                      >
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-300">
+                          <Check className="h-3 w-3" />
+                        </span>
 
-                      <span className="text-sm leading-6 text-slate-300">
-                        {feature}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="text-sm leading-6 text-slate-300">
+                          {feature}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
               </section>
 
@@ -318,10 +366,9 @@ export default function LiteDashboard() {
 
                 <Link
                   to="/dashboard"
-                  className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300 transition hover:text-violet-200"
+                  className="mt-5 inline-flex text-sm font-semibold text-violet-300 transition hover:text-violet-200"
                 >
-                  Open Advanced workspace
-                  <ArrowRight className="h-4 w-4" />
+                  Open Advanced workspace →
                 </Link>
               </section>
             </aside>
