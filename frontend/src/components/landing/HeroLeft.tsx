@@ -1,5 +1,11 @@
 import { motion } from "motion/react";
-import { FaGithub, FaRobot, FaLock, FaFileAlt } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import {
+  FaFileAlt,
+  FaGithub,
+  FaLock,
+  FaRobot,
+} from "react-icons/fa";
 
 import HeroBadge from "./HeroBadge";
 import { heroData } from "../../data/hero";
@@ -15,7 +21,10 @@ export default function HeroLeft() {
         transition={{ duration: 0.55, delay: 0.12 }}
         className="mt-6 max-w-[9ch] text-5xl font-black leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl"
       >
-        <span className="block">Your Git History.</span>
+        <span className="block">
+          Your Git History.
+        </span>
+
         <span className="block bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 bg-clip-text text-transparent">
           Beautifully Summarized.
         </span>
@@ -36,14 +45,22 @@ export default function HeroLeft() {
         transition={{ duration: 0.5, delay: 0.32 }}
         className="mt-8 flex flex-wrap gap-4"
       >
-        <button className="rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25">
+        <Link
+          to="/connect"
+          className="rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25"
+        >
           <FaGithub className="mr-2 inline" />
           {heroData.primaryButton}
-        </button>
+        </Link>
 
-        <button className="rounded-xl border border-white/10 bg-white/5 px-7 py-4 text-white backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10">
+        <a
+          href="https://github.com/arshad-rahman/relescope#readme"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-xl border border-white/10 bg-white/5 px-7 py-4 text-white backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10"
+        >
           {heroData.secondaryButton}
-        </button>
+        </a>
       </motion.div>
 
       <motion.div
