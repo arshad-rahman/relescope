@@ -1,22 +1,22 @@
 export const heroData = {
-  badge: "AI Powered Release Notes",
+  badge: "Lite + Advanced Release Workflows",
 
   title: [
     "Write Release Notes",
-    "Developers Actually Read."
+    "Developers Actually Read.",
   ],
 
   subtitle:
-    "Generate professional release notes from Git commits in seconds. Supports private repositories, AI summaries and multiple export formats.",
+    "Choose a fast guided Lite workflow or a complete Advanced workspace. Both turn real Git history into polished, editable release notes.",
 
-  primaryButton: "Connect GitHub",
+  primaryButton: "Start with Lite",
 
-  secondaryButton: "Documentation",
+  secondaryButton: "Open Advanced",
 
   highlights: [
+    "Guided Lite Workflow",
+    "Advanced Release Control",
     "Private Repository Support",
     "AI Generated Summaries",
-    "Markdown Export",
-    "Enterprise Ready"
-  ]
+  ],
 };
