@@ -36,3 +36,6 @@ Thumbs.db
 
 # Backup files
 *.backup
+
+# Local application database
+backend/data/
