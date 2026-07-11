@@ -16,6 +16,7 @@ import {
 
 import Background from "../components/layout/Background";
 
+import LiteGenerationStep from "../components/lite/LiteGenerationStep";
 import LiteRangeStep from "../components/lite/LiteRangeStep";
 import LiteRepositoryStep from "../components/lite/LiteRepositoryStep";
 import LiteReviewStep from "../components/lite/LiteReviewStep";
@@ -30,10 +31,18 @@ import {
   getRepositories,
 } from "../services/github";
 
+import {
+  generateReleaseNotes,
+} from "../services/release";
+
 import type {
   Commit,
   Repository,
 } from "../types/github";
+
+import type {
+  ReleaseNotes,
+} from "../types/release";
 
 import {
   getLiteContributors,
@@ -61,7 +70,7 @@ export default function LiteDashboard() {
   const [
     currentStep,
     setCurrentStep,
-  ] = useState<1 | 2 | 3>(1);
+  ] = useState<1 | 2 | 3 | 4>(1);
 
   const [
     repositories,
@@ -119,6 +128,23 @@ export default function LiteDashboard() {
     version,
     setVersion,
   ] = useState("v1.0.0");
+
+  const [
+    generationLoading,
+    setGenerationLoading,
+  ] = useState(false);
+
+  const [
+    generationError,
+    setGenerationError,
+  ] = useState("");
+
+  const [
+    releaseNotes,
+    setReleaseNotes,
+  ] = useState<ReleaseNotes | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -181,9 +207,15 @@ export default function LiteDashboard() {
       );
     }, [selectedCommits]);
 
+  function resetGeneratedRelease() {
+    setReleaseNotes(null);
+    setGenerationError("");
+  }
+
   function resetCommitSelection() {
     setSelectedCommits([]);
     setCommitsError("");
+    resetGeneratedRelease();
   }
 
   function handleRepositoryChange(
@@ -225,6 +257,20 @@ export default function LiteDashboard() {
     );
 
     resetCommitSelection();
+  }
+
+  function handleReleaseTitleChange(
+    nextTitle: string,
+  ) {
+    setReleaseTitle(nextTitle);
+    resetGeneratedRelease();
+  }
+
+  function handleVersionChange(
+    nextVersion: string,
+  ) {
+    setVersion(nextVersion);
+    resetGeneratedRelease();
   }
 
   function continueToRange() {
@@ -282,6 +328,74 @@ export default function LiteDashboard() {
     } finally {
       setCommitsLoading(false);
     }
+  }
+
+  async function generateLiteRelease() {
+    if (
+      !selectedRepository ||
+      !branch ||
+      !releaseRange ||
+      selectedCommits.length === 0 ||
+      !releaseTitle.trim()
+    ) {
+      return;
+    }
+
+    setCurrentStep(4);
+    setGenerationLoading(true);
+    setGenerationError("");
+    setReleaseNotes(null);
+
+    try {
+      const notes =
+        await generateReleaseNotes({
+          repository:
+            selectedRepository.fullName,
+
+          branch,
+
+          title: releaseTitle.trim(),
+
+          version: version.trim(),
+
+          environment: "Development",
+
+          generateFor: "all",
+
+          selectedAuthor: "",
+
+          commits: selectedCommits,
+        });
+
+      setReleaseNotes(notes);
+    } catch (requestError) {
+      setGenerationError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to generate release notes.",
+      );
+    } finally {
+      setGenerationLoading(false);
+    }
+  }
+
+  function startAnotherRelease() {
+    setRepositoryFullName("");
+    setBranch("");
+    setReleaseRange(null);
+    setSelectedCommits([]);
+
+    setCommitsLoading(false);
+    setCommitsError("");
+
+    setReleaseTitle("Weekly Release");
+    setVersion("v1.0.0");
+
+    setGenerationLoading(false);
+    setGenerationError("");
+    setReleaseNotes(null);
+
+    setCurrentStep(1);
   }
 
   return (
@@ -393,7 +507,7 @@ export default function LiteDashboard() {
                 }
                 onContinue={continueToReview}
               />
-            ) : (
+            ) : currentStep === 3 ? (
               <LiteReviewStep
                 repository={
                   selectedRepository?.fullName ??
@@ -410,11 +524,43 @@ export default function LiteDashboard() {
                 releaseTitle={releaseTitle}
                 version={version}
                 onReleaseTitleChange={
-                  setReleaseTitle
+                  handleReleaseTitleChange
                 }
-                onVersionChange={setVersion}
+                onVersionChange={
+                  handleVersionChange
+                }
                 onBack={() =>
                   setCurrentStep(2)
+                }
+                onGenerate={
+                  generateLiteRelease
+                }
+              />
+            ) : (
+              <LiteGenerationStep
+                repository={
+                  selectedRepository?.fullName ??
+                  repositoryFullName
+                }
+                branch={branch}
+                commitCount={
+                  selectedCommits.length
+                }
+                loading={
+                  generationLoading
+                }
+                error={generationError}
+                releaseNotes={releaseNotes}
+                onChange={setReleaseNotes}
+                onBackToReview={() => {
+                  setGenerationError("");
+                  setCurrentStep(3);
+                }}
+                onRetry={
+                  generateLiteRelease
+                }
+                onStartAnother={
+                  startAnotherRelease
                 }
               />
             )}

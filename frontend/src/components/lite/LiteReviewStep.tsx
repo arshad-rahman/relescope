@@ -34,6 +34,7 @@ type Props = {
     value: string,
   ) => void;
   onBack: () => void;
+  onGenerate: () => void;
 };
 
 export default function LiteReviewStep({
@@ -47,6 +48,7 @@ export default function LiteReviewStep({
   onReleaseTitleChange,
   onVersionChange,
   onBack,
+  onGenerate,
 }: Props) {
   const visibleCommits =
     selectedCommits.slice(0, 8);
@@ -286,17 +288,21 @@ export default function LiteReviewStep({
 
           <button
             type="button"
-            disabled
-            className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-semibold text-slate-950 opacity-45"
+            disabled={
+              !releaseTitle.trim() ||
+              selectedCommits.length === 0
+            }
+            onClick={onGenerate}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-4 font-semibold text-slate-950 transition duration-300 hover:-translate-y-0.5 hover:bg-cyan-400 hover:shadow-lg hover:shadow-cyan-400/15 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-40"
           >
-            Continue to generation
+            Generate release notes
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
 
         <p className="mt-3 text-center text-xs text-slate-600">
-          AI generation will be connected in the next
-          Lite milestone.
+          Lite will classify the selected commits and
+          build an editable release document.
         </p>
       </div>
     </section>
