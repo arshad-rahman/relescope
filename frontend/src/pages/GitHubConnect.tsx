@@ -9,6 +9,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import PatSecurityGuide from "../components/auth/PatSecurityGuide";
 import Background from "../components/layout/Background";
 import Navbar from "../components/layout/Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -70,14 +71,14 @@ export default function GitHubConnect() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020617] text-white">
+    <main className="relative min-h-screen overflow-x-hidden bg-[#020617] text-white">
       <Background />
 
       <div className="relative z-10">
         <Navbar page="connect" />
 
-        <section className="flex min-h-[calc(100vh-88px)] items-center justify-center px-6 pb-16 pt-6">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl backdrop-blur-xl">
+        <section className="mx-auto grid min-h-[calc(100vh-88px)] max-w-6xl items-start gap-6 px-6 pb-16 pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)]">
+          <div className="w-full rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl backdrop-blur-xl">
             <Link
               to="/"
               className="text-sm text-slate-400 transition hover:text-white"
@@ -122,6 +123,8 @@ export default function GitHubConnect() {
                   }
                   placeholder="github_pat_..."
                   autoComplete="off"
+                  spellCheck={false}
+                  required
                   disabled={loading}
                   className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-500 disabled:opacity-60"
                 />
@@ -146,12 +149,16 @@ export default function GitHubConnect() {
               </button>
             </form>
 
-            <p className="mt-6 text-xs leading-5 text-slate-500">
-              The token is kept only for the current browser
-              tab in this MVP. Do not use a token with write
-              permissions.
-            </p>
+            <div className="mt-6 rounded-xl border border-white/5 bg-slate-950/40 px-4 py-3">
+              <p className="text-xs leading-5 text-slate-500">
+                Your token is kept in this browser tab for the
+                current session. Relescope does not require
+                repository write permissions.
+              </p>
+            </div>
           </div>
+
+          <PatSecurityGuide />
         </section>
       </div>
     </main>
