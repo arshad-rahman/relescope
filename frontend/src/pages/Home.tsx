@@ -3,8 +3,14 @@ import { Link } from "react-router-dom";
 import Background from "../components/layout/Background";
 import Navbar from "../components/layout/Navbar";
 import Hero from "../components/landing/Hero";
+import ExperienceSelector from "../components/landing/ExperienceSelector";
 
 const features = [
+  {
+    title: "Lite and Advanced Workflows",
+    description:
+      "Choose a guided experience for speed or a complete workspace for detailed release control.",
+  },
   {
     title: "Private Repository Support",
     description:
@@ -13,38 +19,33 @@ const features = [
   {
     title: "AI Release Summaries",
     description:
-      "Transform real commit history into clear, professional release notes.",
+      "Transform real commit history into clear, professional and editable release notes.",
   },
   {
-    title: "Developer Filtering",
+    title: "Editing and Multiple Exports",
     description:
-      "Generate notes for the complete team or for an individual contributor.",
-  },
-  {
-    title: "Multiple Export Formats",
-    description:
-      "Copy or export generated release notes as Markdown, JSON, or PDF.",
+      "Refine generated sections and export release notes as Markdown, JSON, PDF, or copied text.",
   },
 ];
 
 const steps = [
   {
     number: "01",
-    title: "Connect GitHub",
+    title: "Choose Your Experience",
     description:
-      "Authenticate securely and select one of your GitHub repositories.",
+      "Start with the guided Lite workflow or open the complete Advanced workspace.",
   },
   {
     number: "02",
-    title: "Choose Commits",
+    title: "Connect Your Repository",
     description:
-      "Select a branch, filter commits, and configure your release.",
+      "Authenticate securely and choose the GitHub history that should be analysed.",
   },
   {
     number: "03",
-    title: "Generate and Export",
+    title: "Generate, Edit and Export",
     description:
-      "Generate AI-powered release notes and export them in your preferred format.",
+      "Create AI-powered release notes, refine the content and export the result.",
   },
 ];
 
@@ -54,6 +55,7 @@ export default function Home() {
       <Background />
       <Navbar />
       <Hero />
+      <ExperienceSelector />
 
       <section
         id="features"
@@ -130,12 +132,21 @@ export default function Home() {
             ))}
           </div>
 
-          <Link
-            to="/connect"
-            className="mt-10 inline-flex rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white transition hover:bg-blue-500"
-          >
-            Connect GitHub
-          </Link>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link
+              to="/lite"
+              className="inline-flex rounded-xl bg-cyan-500 px-7 py-4 font-semibold text-slate-950 transition hover:bg-cyan-400"
+            >
+              Start with Lite
+            </Link>
+
+            <Link
+              to="/dashboard"
+              className="inline-flex rounded-xl border border-white/10 bg-white/5 px-7 py-4 font-semibold text-white transition hover:bg-white/10"
+            >
+              Open Advanced
+            </Link>
+          </div>
         </div>
       </section>
 

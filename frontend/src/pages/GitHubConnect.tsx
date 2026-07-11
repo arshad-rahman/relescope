@@ -6,6 +6,7 @@ import {
 import {
   Link,
   Navigate,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
@@ -17,6 +18,18 @@ import { connectGitHub } from "../services/github";
 
 export default function GitHubConnect() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const requestedPath = (
+    location.state as {
+      from?: string;
+    } | null
+  )?.from;
+
+  const destination =
+    requestedPath === "/lite"
+      ? "/lite"
+      : "/dashboard";
 
   const {
     connect,
@@ -30,7 +43,7 @@ export default function GitHubConnect() {
   if (isAuthenticated) {
     return (
       <Navigate
-        to="/dashboard"
+        to={destination}
         replace
       />
     );
@@ -56,7 +69,7 @@ export default function GitHubConnect() {
 
       connect(token, user);
 
-      navigate("/dashboard", {
+      navigate(destination, {
         replace: true,
       });
     } catch (requestError) {

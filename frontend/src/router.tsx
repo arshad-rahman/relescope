@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import GitHubConnect from "./pages/GitHubConnect";
 import Home from "./pages/Home";
+import LiteDashboard from "./pages/LiteDashboard";
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      {
+        path: "/lite",
+        element: <LiteDashboard />,
+      },
       {
         path: "/dashboard",
         element: <Dashboard />,
