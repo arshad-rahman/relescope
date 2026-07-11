@@ -3,9 +3,15 @@ import {
   useState,
 } from "react";
 
-import { getBranches } from "../../services/github";
+import BeautifulSelect from "../ui/BeautifulSelect";
 
-import type { Branch } from "../../types/github";
+import {
+  getBranches,
+} from "../../services/github";
+
+import type {
+  Branch,
+} from "../../types/github";
 
 type Props = {
   token: string;
@@ -23,8 +29,11 @@ export default function BranchSelector({
   const [branches, setBranches] =
     useState<Branch[]>([]);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     let active = true;
@@ -75,7 +84,26 @@ export default function BranchSelector({
     return () => {
       active = false;
     };
-  }, [token, repositoryFullName]);
+  }, [
+    token,
+    repositoryFullName,
+  ]);
+
+  const options = branches.map(
+    (branch) => ({
+      value: branch.name,
+      label: branch.name,
+    }),
+  );
+
+  const placeholder =
+    !repositoryFullName
+      ? "Select repository first"
+      : loading
+        ? "Loading branches..."
+        : branches.length === 0
+          ? "No branches available"
+          : "Select a branch";
 
   return (
     <div className="space-y-2">
@@ -83,33 +111,19 @@ export default function BranchSelector({
         Branch
       </label>
 
-      <select
-        disabled={
-          !repositoryFullName || loading
-        }
+      <BeautifulSelect
+        id="branch-selector"
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
+        options={options}
+        placeholder={placeholder}
+        ariaLabel="Select repository branch"
+        disabled={
+          !repositoryFullName ||
+          loading ||
+          branches.length === 0
         }
-        className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none focus:border-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="">
-          {!repositoryFullName
-            ? "Select repository first"
-            : loading
-              ? "Loading branches..."
-              : "Select a branch"}
-        </option>
-
-        {branches.map((branch) => (
-          <option
-            key={branch.id}
-            value={branch.name}
-          >
-            {branch.name}
-          </option>
-        ))}
-      </select>
+        onValueChange={onChange}
+      />
 
       {error && (
         <p className="text-sm text-red-400">
