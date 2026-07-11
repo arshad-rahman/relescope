@@ -1,10 +1,38 @@
-# frontend
+# Frontend
 frontend/node_modules/
+frontend/dist/
 
-# backend
+# Backend virtual environments
 backend/venv/
-backend/__pycache__/
-*.pyc
+backend/.venv/
+venv/
+.venv/
 
-# env
+# Python cache and tooling
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment files and secrets
 .env
+.env.*
+!**/.env.example
+
+# Editors
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Backup files
+*.backup
