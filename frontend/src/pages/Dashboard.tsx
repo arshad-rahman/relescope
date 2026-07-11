@@ -28,6 +28,17 @@ import type {
 } from "../types/release";
 
 
+function normalizeAuthorName(
+  value: string,
+): string {
+  return value
+    .trim()
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[\s._-]+/g, "");
+}
+
+
 export default function Dashboard() {
   const {
     token,
@@ -188,13 +199,53 @@ export default function Dashboard() {
 
 
   const authors = useMemo(() => {
-    return Array.from(
-      new Set(
-        selectedCommits.map(
-          (commit) => commit.author,
-        ),
-      ),
-    ).sort();
+    const groups = new Map<
+      string,
+      Map<string, number>
+    >();
+
+    for (const commit of selectedCommits) {
+      const displayName =
+        commit.author.trim() ||
+        commit.authorEmail.trim() ||
+        "Unknown author";
+
+      const identity =
+        normalizeAuthorName(displayName);
+
+      if (!identity) {
+        continue;
+      }
+
+      const variants =
+        groups.get(identity) ??
+        new Map<string, number>();
+
+      variants.set(
+        displayName,
+        (variants.get(displayName) ?? 0) + 1,
+      );
+
+      groups.set(identity, variants);
+    }
+
+    return Array.from(groups.values())
+      .map((variants) => {
+        return (
+          Array.from(variants.entries())
+            .sort(
+              (
+                [nameA, countA],
+                [nameB, countB],
+              ) =>
+                countB - countA ||
+                nameA.localeCompare(nameB),
+            )[0]?.[0] ?? "Unknown author"
+        );
+      })
+      .sort((nameA, nameB) =>
+        nameA.localeCompare(nameB),
+      );
   }, [selectedCommits]);
 
 

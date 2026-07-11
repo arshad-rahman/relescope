@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from app.schemas.release import (
     AIReleaseItem,
     ReleaseCommit,
@@ -8,6 +11,21 @@ from app.schemas.release import (
 from app.services.ai_release_service import (
     generate_ai_release_content,
 )
+
+
+def _normalize_author_name(
+    value: str,
+) -> str:
+    normalized = unicodedata.normalize(
+        "NFKC",
+        value,
+    )
+
+    return re.sub(
+        r"[\s._-]+",
+        "",
+        normalized.strip().casefold(),
+    )
 
 
 def _select_commits(
@@ -26,10 +44,18 @@ def _select_commits(
                 "generate_for is individual"
             )
 
+        selected_author_identity = (
+            _normalize_author_name(
+                selected_author
+            )
+        )
+
         commits = [
             commit
             for commit in commits
-            if commit.author == selected_author
+            if _normalize_author_name(
+                commit.author
+            ) == selected_author_identity
         ]
 
     if not commits:
