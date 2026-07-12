@@ -8,10 +8,15 @@ import {
 
 import EditableReleasePreview from "../dashboard/EditableReleasePreview";
 import ReleaseGenerationLoader from "../dashboard/ReleaseGenerationLoader";
+import ReleaseSaveActions from "../release/ReleaseSaveActions";
 
 import type {
   ReleaseNotes,
 } from "../../types/release";
+
+import type {
+  SavedReleaseStatus,
+} from "../../types/savedRelease";
 
 type Props = {
   repository: string;
@@ -26,6 +31,18 @@ type Props = {
   onBackToReview: () => void;
   onRetry: () => void;
   onStartAnother: () => void;
+
+  savedStatus:
+    SavedReleaseStatus | null;
+
+  saveLoading: boolean;
+  saveError: string;
+
+  hasUnsavedChanges: boolean;
+  savedAt: string;
+
+  onSaveDraft: () => void;
+  onSaveFinal: () => void;
 };
 
 export default function LiteGenerationStep({
@@ -39,6 +56,13 @@ export default function LiteGenerationStep({
   onBackToReview,
   onRetry,
   onStartAnother,
+  savedStatus,
+  saveLoading,
+  saveError,
+  hasUnsavedChanges,
+  savedAt,
+  onSaveDraft,
+  onSaveFinal,
 }: Props) {
   if (loading) {
     return (
@@ -202,6 +226,18 @@ export default function LiteGenerationStep({
           </div>
         </div>
       </section>
+
+      <ReleaseSaveActions
+        status={savedStatus}
+        saving={saveLoading}
+        error={saveError}
+        hasUnsavedChanges={
+          hasUnsavedChanges
+        }
+        savedAt={savedAt}
+        onSaveDraft={onSaveDraft}
+        onSaveFinal={onSaveFinal}
+      />
 
       <EditableReleasePreview
         releaseNotes={releaseNotes}
