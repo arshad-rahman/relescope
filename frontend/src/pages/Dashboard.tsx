@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -17,11 +18,17 @@ import ReleaseGenerationLoader from "../components/dashboard/ReleaseGenerationLo
 import ReleaseConfiguration from "../components/dashboard/ReleaseConfiguration";
 import EditableReleasePreview from "../components/dashboard/EditableReleasePreview";
 import RepositorySelector from "../components/dashboard/RepositorySelector";
+import ReleaseSaveActions from "../components/release/ReleaseSaveActions";
 
 import { useAuth } from "../context/AuthContext";
 
 import { getRepositories } from "../services/github";
 import { generateReleaseNotes } from "../services/release";
+
+import {
+  createSavedRelease,
+  updateSavedRelease,
+} from "../services/savedRelease";
 
 import type {
   Commit,
@@ -31,6 +38,11 @@ import type {
 import type {
   ReleaseNotes,
 } from "../types/release";
+
+import type {
+  SavedReleaseCreateInput,
+  SavedReleaseStatus,
+} from "../types/savedRelease";
 
 
 function normalizeAuthorName(
@@ -136,6 +148,38 @@ export default function Dashboard() {
     selectedAuthor,
     setSelectedAuthor,
   ] = useState("");
+
+  const [
+    savedReleaseId,
+    setSavedReleaseId,
+  ] = useState<number | null>(null);
+
+  const [
+    savedReleaseStatus,
+    setSavedReleaseStatus,
+  ] = useState<SavedReleaseStatus | null>(
+    null,
+  );
+
+  const [
+    saveLoading,
+    setSaveLoading,
+  ] = useState(false);
+
+  const [
+    saveError,
+    setSaveError,
+  ] = useState("");
+
+  const [
+    savedAt,
+    setSavedAt,
+  ] = useState("");
+
+  const [
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+  ] = useState(false);
 
 
   useEffect(() => {
@@ -272,6 +316,55 @@ export default function Dashboard() {
     setGenerationError("");
   }
 
+  function resetSavedReleaseIdentity() {
+    setSavedReleaseId(null);
+    setSavedReleaseStatus(null);
+
+    setSaveLoading(false);
+    setSaveError("");
+
+    setSavedAt("");
+    setHasUnsavedChanges(false);
+  }
+
+  function resetAdvancedResult() {
+    resetGeneratedRelease();
+    resetSavedReleaseIdentity();
+  }
+
+  function handleReleaseNotesChange(
+    nextReleaseNotes: ReleaseNotes,
+  ) {
+    setReleaseNotes(nextReleaseNotes);
+    setHasUnsavedChanges(true);
+    setSaveError("");
+  }
+
+  const handleCommitSelectionChange =
+    useCallback(
+      (
+        nextCommits: Commit[],
+      ) => {
+        setSelectedCommits(
+          nextCommits,
+        );
+
+        setSelectedAuthor("");
+
+        resetGeneratedRelease();
+
+        setSavedReleaseId(null);
+        setSavedReleaseStatus(null);
+
+        setSaveLoading(false);
+        setSaveError("");
+
+        setSavedAt("");
+        setHasUnsavedChanges(false);
+      },
+      [],
+    );
+
 
   function handleRepositoryChange(
     fullName: string,
@@ -295,7 +388,7 @@ export default function Dashboard() {
 
     setSelectedAuthor("");
 
-    resetGeneratedRelease();
+    resetAdvancedResult();
   }
 
 
@@ -308,7 +401,7 @@ export default function Dashboard() {
 
     setSelectedAuthor("");
 
-    resetGeneratedRelease();
+    resetAdvancedResult();
   }
 
 
@@ -360,6 +453,8 @@ export default function Dashboard() {
 
 
       setReleaseNotes(notes);
+      setHasUnsavedChanges(true);
+      setSaveError("");
     } catch (requestError) {
       setGenerationError(
         requestError instanceof Error
@@ -368,6 +463,116 @@ export default function Dashboard() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function saveAdvancedRelease(
+    nextStatus: SavedReleaseStatus,
+  ) {
+    if (
+      !user ||
+      !selectedRepository ||
+      !branch ||
+      !releaseNotes ||
+      selectedCommits.length === 0
+    ) {
+      return;
+    }
+
+    const releaseData: Omit<
+      SavedReleaseCreateInput,
+      "ownerLogin"
+    > = {
+      experienceMode: "advanced",
+      selectionMode: "manual",
+      status: nextStatus,
+
+      repository:
+        selectedRepository.fullName,
+
+      branch,
+
+      title:
+        releaseNotes.title.trim(),
+
+      version: version.trim(),
+      environment,
+
+      generateFor,
+      selectedAuthor:
+        generateFor === "individual"
+          ? selectedAuthor
+          : "",
+
+      releaseRange: null,
+      dateFrom: null,
+      dateTo: null,
+
+      summary: releaseNotes.summary,
+      features: releaseNotes.features,
+      fixes: releaseNotes.fixes,
+
+      improvements:
+        releaseNotes.improvements,
+
+      documentation:
+        releaseNotes.documentation,
+
+      maintenance:
+        releaseNotes.maintenance,
+
+      contributors:
+        releaseNotes.contributors,
+
+      selectedCommitIds:
+        selectedCommits.map(
+          (commit) => commit.id,
+        ),
+
+      selectedCommits,
+
+      totalCommits:
+        selectedCommits.length,
+    };
+
+    setSaveLoading(true);
+    setSaveError("");
+
+    try {
+      const savedRelease =
+        savedReleaseId === null
+          ? await createSavedRelease({
+              ownerLogin: user.login,
+              ...releaseData,
+            })
+          : await updateSavedRelease(
+              savedReleaseId,
+              user.login,
+              releaseData,
+            );
+
+      setSavedReleaseId(
+        savedRelease.id,
+      );
+
+      setSavedReleaseStatus(
+        savedRelease.status,
+      );
+
+      setSavedAt(
+        savedRelease.updatedAt,
+      );
+
+      setHasUnsavedChanges(false);
+    } catch (requestError) {
+      setSaveError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to save the release.",
+      );
+    } finally {
+      setSaveLoading(false);
     }
   }
 
@@ -469,7 +674,7 @@ export default function Dashboard() {
               }
               branch={branch}
               onSelectionChange={
-                setSelectedCommits
+                handleCommitSelectionChange
               }
             />
 
@@ -539,10 +744,38 @@ export default function Dashboard() {
               developer={selectedAuthor}
             />
           ) : (
-            <EditableReleasePreview
-              releaseNotes={releaseNotes}
-              onChange={setReleaseNotes}
-            />
+            <div className="space-y-5">
+              {releaseNotes && (
+                <ReleaseSaveActions
+                  status={
+                    savedReleaseStatus
+                  }
+                  saving={saveLoading}
+                  error={saveError}
+                  hasUnsavedChanges={
+                    hasUnsavedChanges
+                  }
+                  savedAt={savedAt}
+                  onSaveDraft={() =>
+                    void saveAdvancedRelease(
+                      "draft",
+                    )
+                  }
+                  onSaveFinal={() =>
+                    void saveAdvancedRelease(
+                      "final",
+                    )
+                  }
+                />
+              )}
+
+              <EditableReleasePreview
+                releaseNotes={releaseNotes}
+                onChange={
+                  handleReleaseNotesChange
+                }
+              />
+            </div>
           )}
         </div>
       </main>
