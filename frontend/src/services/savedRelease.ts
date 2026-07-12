@@ -495,6 +495,32 @@ export async function updateSavedRelease(
   }
 }
 
+export async function getSavedRelease(
+  releaseId: number,
+  ownerLogin: string,
+): Promise<SavedRelease> {
+  try {
+    const response =
+      await api.get<SavedReleaseApi>(
+        `/saved-releases/${releaseId}`,
+        {
+          params: {
+            owner_login: ownerLogin,
+          },
+        },
+      );
+
+    return mapSavedRelease(
+      response.data,
+    );
+  } catch (error) {
+    throw new Error(
+      getErrorMessage(error),
+    );
+  }
+}
+
+
 export async function listSavedReleases(
   ownerLogin: string,
   filters: import(

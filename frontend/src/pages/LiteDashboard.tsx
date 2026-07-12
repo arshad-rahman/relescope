@@ -5,13 +5,16 @@ import {
 } from "react";
 
 import {
+  AlertCircle,
   Check,
+  LoaderCircle,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 
 import {
   Link,
+  useSearchParams,
 } from "react-router-dom";
 
 import Background from "../components/layout/Background";
@@ -37,6 +40,7 @@ import {
 
 import {
   createSavedRelease,
+  getSavedRelease,
   updateSavedRelease,
 } from "../services/savedRelease";
 
@@ -62,6 +66,19 @@ import {
   type LiteReleaseRange,
 } from "../utils/liteRelease";
 
+function isLiteReleaseRange(
+  value: string | null,
+): value is LiteReleaseRange {
+  return [
+    "7d",
+    "14d",
+    "30d",
+    "10c",
+    "25c",
+  ].includes(value ?? "");
+}
+
+
 const automaticFeatures = [
   "Select matching commits automatically",
   "Detect and normalize contributors",
@@ -76,6 +93,14 @@ export default function LiteDashboard() {
     user,
     logout,
   } = useAuth();
+
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
+  const resumeReleaseId =
+    searchParams.get("releaseId");
 
   const [
     currentStep,
@@ -190,6 +215,18 @@ export default function LiteDashboard() {
     setHasUnsavedChanges,
   ] = useState(false);
 
+  const [
+    resumeLoading,
+    setResumeLoading,
+  ] = useState(
+    Boolean(resumeReleaseId),
+  );
+
+  const [
+    resumeError,
+    setResumeError,
+  ] = useState("");
+
   useEffect(() => {
     let active = true;
 
@@ -231,6 +268,180 @@ export default function LiteDashboard() {
       active = false;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (!resumeReleaseId) {
+      setResumeLoading(false);
+      setResumeError("");
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    const ownerLogin =
+      user.login;
+
+    const releaseId =
+      Number(resumeReleaseId);
+
+    if (
+      !Number.isInteger(releaseId) ||
+      releaseId <= 0
+    ) {
+      setResumeLoading(false);
+
+      setResumeError(
+        "The saved release ID is invalid.",
+      );
+
+      return;
+    }
+
+    let active = true;
+
+    async function resumeSavedRelease() {
+      setResumeLoading(true);
+      setResumeError("");
+
+      try {
+        const savedRelease =
+          await getSavedRelease(
+            releaseId,
+            ownerLogin,
+          );
+
+        if (!active) {
+          return;
+        }
+
+        if (
+          savedRelease.experienceMode !==
+          "lite"
+        ) {
+          throw new Error(
+            "This release belongs to the " +
+            "Advanced workspace.",
+          );
+        }
+
+        if (
+          !isLiteReleaseRange(
+            savedRelease.releaseRange,
+          )
+        ) {
+          throw new Error(
+            "The saved Lite release range " +
+            "is not supported.",
+          );
+        }
+
+        setRepositoryFullName(
+          savedRelease.repository,
+        );
+
+        setBranch(
+          savedRelease.branch,
+        );
+
+        setReleaseRange(
+          savedRelease.releaseRange,
+        );
+
+        setSelectedCommits(
+          savedRelease.selectedCommits,
+        );
+
+        setReleaseTitle(
+          savedRelease.title,
+        );
+
+        setVersion(
+          savedRelease.version,
+        );
+
+        setReleaseNotes({
+          title: savedRelease.title,
+          summary: savedRelease.summary,
+
+          features: [
+            ...savedRelease.features,
+          ],
+
+          fixes: [
+            ...savedRelease.fixes,
+          ],
+
+          improvements: [
+            ...savedRelease.improvements,
+          ],
+
+          documentation: [
+            ...savedRelease.documentation,
+          ],
+
+          maintenance: [
+            ...savedRelease.maintenance,
+          ],
+
+          contributors: [
+            ...savedRelease.contributors,
+          ],
+
+          totalCommits:
+            savedRelease.totalCommits,
+        });
+
+        setSavedReleaseId(
+          savedRelease.id,
+        );
+
+        setSavedReleaseStatus(
+          savedRelease.status,
+        );
+
+        setSavedAt(
+          savedRelease.updatedAt,
+        );
+
+        setHasUnsavedChanges(false);
+
+        setGenerationLoading(false);
+        setGenerationError("");
+
+        setSaveLoading(false);
+        setSaveError("");
+
+        setCurrentStep(4);
+      } catch (requestError) {
+        if (!active) {
+          return;
+        }
+
+        setResumeError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to resume the release.",
+        );
+
+        setCurrentStep(1);
+      } finally {
+        if (active) {
+          setResumeLoading(false);
+        }
+      }
+    }
+
+    void resumeSavedRelease();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    user,
+    resumeReleaseId,
+  ]);
 
   const selectedRepository =
     useMemo(() => {
@@ -455,7 +666,7 @@ export default function LiteDashboard() {
   ) {
     if (
       !user ||
-      !selectedRepository ||
+      !repositoryFullName ||
       !branch ||
       !releaseRange ||
       !releaseNotes ||
@@ -473,7 +684,7 @@ export default function LiteDashboard() {
       status: nextStatus,
 
       repository:
-        selectedRepository.fullName,
+        repositoryFullName,
 
       branch,
 
@@ -565,6 +776,13 @@ export default function LiteDashboard() {
   }
 
   function startAnotherRelease() {
+    setSearchParams(
+      {},
+      {
+        replace: true,
+      },
+    );
+
     setRepositoryFullName("");
     setBranch("");
     setReleaseRange(null);
@@ -656,12 +874,34 @@ export default function LiteDashboard() {
             </p>
           </div>
 
+          {resumeError && (
+            <div className="mt-7 flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.08] px-5 py-4 text-sm text-red-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              {resumeError}
+            </div>
+          )}
+
           <LiteStepProgress
             currentStep={currentStep}
           />
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            {currentStep === 1 ? (
+            {resumeLoading ? (
+              <section className="flex min-h-80 items-center justify-center rounded-3xl border border-cyan-400/15 bg-slate-900/70 p-8">
+                <div className="text-center">
+                  <LoaderCircle className="mx-auto h-8 w-8 animate-spin text-cyan-300" />
+
+                  <h2 className="mt-5 text-xl font-bold text-white">
+                    Loading saved release
+                  </h2>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    Restoring its repository,
+                    commits and generated notes.
+                  </p>
+                </div>
+              </section>
+            ) : currentStep === 1 ? (
               <LiteRepositoryStep
                 token={token}
                 repositories={repositories}

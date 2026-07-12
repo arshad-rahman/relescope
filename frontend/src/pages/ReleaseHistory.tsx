@@ -7,6 +7,7 @@ import {
 
 import {
   AlertCircle,
+  ArrowUpRight,
   CalendarClock,
   FileClock,
   GitBranch,
@@ -765,17 +766,30 @@ export default function ReleaseHistory() {
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openRelease(
-                              release,
-                            )
-                          }
-                          className="mt-5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/20 hover:bg-cyan-400/[0.06] hover:text-cyan-300"
-                        >
-                          Open release
-                        </button>
+                        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openRelease(
+                                release,
+                              )
+                            }
+                            className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/20 hover:bg-cyan-400/[0.06] hover:text-cyan-300"
+                          >
+                            Open release
+                          </button>
+
+                          {release.experienceMode ===
+                            "lite" && (
+                            <Link
+                              to={`/lite?releaseId=${release.id}`}
+                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                            >
+                              Continue in Lite
+                              <ArrowUpRight className="h-4 w-4" />
+                            </Link>
+                          )}
+                        </div>
                       </article>
                     );
                   },
