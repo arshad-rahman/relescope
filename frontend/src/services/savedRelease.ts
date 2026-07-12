@@ -494,3 +494,77 @@ export async function updateSavedRelease(
     );
   }
 }
+
+export async function listSavedReleases(
+  ownerLogin: string,
+  filters: import(
+    "../types/savedRelease"
+  ).SavedReleaseListFilters = {},
+): Promise<
+  import(
+    "../types/savedRelease"
+  ).SavedReleaseListResult
+> {
+  try {
+    const response = await api.get<{
+      items: SavedReleaseApi[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>("/saved-releases", {
+      params: {
+        owner_login: ownerLogin,
+
+        status:
+          filters.status,
+
+        experience_mode:
+          filters.experienceMode,
+
+        repository:
+          filters.repository,
+
+        limit:
+          filters.limit ?? 100,
+
+        offset:
+          filters.offset ?? 0,
+      },
+    });
+
+    return {
+      items:
+        response.data.items.map(
+          mapSavedRelease,
+        ),
+
+      total: response.data.total,
+      limit: response.data.limit,
+      offset: response.data.offset,
+    };
+  } catch (error) {
+    throw new Error(
+      getErrorMessage(error),
+    );
+  }
+}
+
+export async function deleteSavedRelease(
+  releaseId: number,
+  ownerLogin: string,
+): Promise<void> {
+  try {
+    await api.delete(
+      `/saved-releases/${releaseId}`,
+      {
+        params: {
+          owner_login: ownerLogin,
+        },
+      },
+    );
+  } catch (error) {
+    throw new Error(
+      getErrorMessage(error),
+    );
+  }
+}

@@ -606,6 +606,13 @@ export default function LiteDashboard() {
 
           <div className="flex items-center gap-3">
             <Link
+              to="/history"
+              className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:border-cyan-400/30 hover:bg-white/[0.08] hover:text-white"
+            >
+              History
+            </Link>
+
+            <Link
               to="/dashboard"
               className="hidden rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:border-violet-400/30 hover:bg-white/[0.08] hover:text-white sm:inline-flex"
             >

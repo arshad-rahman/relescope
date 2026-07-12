@@ -4,6 +4,10 @@ import {
   useState,
 } from "react";
 
+import {
+  Link,
+} from "react-router-dom";
+
 import Navbar from "../components/layout/Navbar";
 
 import BranchSelector from "../components/dashboard/BranchSelector";
@@ -389,6 +393,20 @@ export default function Dashboard() {
 
 
           <div className="flex items-center gap-4">
+            <Link
+              to="/lite"
+              className="hidden rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white md:inline-flex"
+            >
+              Lite
+            </Link>
+
+            <Link
+              to="/history"
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
+            >
+              History
+            </Link>
+
             {user?.avatarUrl && (
               <img
                 src={user.avatarUrl}

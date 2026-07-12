@@ -71,3 +71,18 @@ export interface SavedRelease
   createdAt: string;
   updatedAt: string;
 }
+
+export interface SavedReleaseListResult {
+  items: SavedRelease[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SavedReleaseListFilters {
+  status?: SavedReleaseStatus;
+  experienceMode?: SavedReleaseExperienceMode;
+  repository?: string;
+  limit?: number;
+  offset?: number;
+}
