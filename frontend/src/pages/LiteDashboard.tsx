@@ -35,6 +35,11 @@ import {
   generateReleaseNotes,
 } from "../services/release";
 
+import {
+  createSavedRelease,
+  updateSavedRelease,
+} from "../services/savedRelease";
+
 import type {
   Commit,
   Repository,
@@ -43,6 +48,11 @@ import type {
 import type {
   ReleaseNotes,
 } from "../types/release";
+
+import type {
+  SavedReleaseCreateInput,
+  SavedReleaseStatus,
+} from "../types/savedRelease";
 
 import {
   getLiteContributors,
@@ -146,6 +156,40 @@ export default function LiteDashboard() {
     null,
   );
 
+  const [
+    savedReleaseId,
+    setSavedReleaseId,
+  ] = useState<number | null>(
+    null,
+  );
+
+  const [
+    savedReleaseStatus,
+    setSavedReleaseStatus,
+  ] = useState<
+    SavedReleaseStatus | null
+  >(null);
+
+  const [
+    saveLoading,
+    setSaveLoading,
+  ] = useState(false);
+
+  const [
+    saveError,
+    setSaveError,
+  ] = useState("");
+
+  const [
+    savedAt,
+    setSavedAt,
+  ] = useState("");
+
+  const [
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+  ] = useState(false);
+
   useEffect(() => {
     let active = true;
 
@@ -212,10 +256,23 @@ export default function LiteDashboard() {
     setGenerationError("");
   }
 
+  function resetSavedReleaseIdentity() {
+    setSavedReleaseId(null);
+    setSavedReleaseStatus(null);
+
+    setSaveLoading(false);
+    setSaveError("");
+
+    setSavedAt("");
+    setHasUnsavedChanges(false);
+  }
+
   function resetCommitSelection() {
     setSelectedCommits([]);
     setCommitsError("");
+
     resetGeneratedRelease();
+    resetSavedReleaseIdentity();
   }
 
   function handleRepositoryChange(
@@ -271,6 +328,17 @@ export default function LiteDashboard() {
   ) {
     setVersion(nextVersion);
     resetGeneratedRelease();
+  }
+
+  function handleReleaseNotesChange(
+    nextReleaseNotes: ReleaseNotes,
+  ) {
+    setReleaseNotes(
+      nextReleaseNotes,
+    );
+
+    setHasUnsavedChanges(true);
+    setSaveError("");
   }
 
   function continueToRange() {
@@ -368,6 +436,9 @@ export default function LiteDashboard() {
         });
 
       setReleaseNotes(notes);
+
+      setHasUnsavedChanges(true);
+      setSaveError("");
     } catch (requestError) {
       setGenerationError(
         requestError instanceof Error
@@ -376,6 +447,120 @@ export default function LiteDashboard() {
       );
     } finally {
       setGenerationLoading(false);
+    }
+  }
+
+  async function saveLiteRelease(
+    nextStatus: SavedReleaseStatus,
+  ) {
+    if (
+      !user ||
+      !selectedRepository ||
+      !branch ||
+      !releaseRange ||
+      !releaseNotes ||
+      selectedCommits.length === 0
+    ) {
+      return;
+    }
+
+    const releaseData: Omit<
+      SavedReleaseCreateInput,
+      "ownerLogin"
+    > = {
+      experienceMode: "lite",
+      selectionMode: "automatic",
+      status: nextStatus,
+
+      repository:
+        selectedRepository.fullName,
+
+      branch,
+
+      title:
+        releaseNotes.title.trim(),
+
+      version: version.trim(),
+
+      environment: "Development",
+
+      generateFor: "all",
+      selectedAuthor: "",
+
+      releaseRange,
+
+      dateFrom: null,
+      dateTo: null,
+
+      summary:
+        releaseNotes.summary,
+
+      features:
+        releaseNotes.features,
+
+      fixes:
+        releaseNotes.fixes,
+
+      improvements:
+        releaseNotes.improvements,
+
+      documentation:
+        releaseNotes.documentation,
+
+      maintenance:
+        releaseNotes.maintenance,
+
+      contributors:
+        releaseNotes.contributors,
+
+      selectedCommitIds:
+        selectedCommits.map(
+          (commit) => commit.id,
+        ),
+
+      selectedCommits,
+
+      totalCommits:
+        selectedCommits.length,
+    };
+
+    setSaveLoading(true);
+    setSaveError("");
+
+    try {
+      const savedRelease =
+        savedReleaseId === null
+          ? await createSavedRelease({
+              ownerLogin: user.login,
+              ...releaseData,
+            })
+          : await updateSavedRelease(
+              savedReleaseId,
+              user.login,
+              releaseData,
+            );
+
+      setSavedReleaseId(
+        savedRelease.id,
+      );
+
+      setSavedReleaseStatus(
+        savedRelease.status,
+      );
+
+      setSavedAt(
+        savedRelease.updatedAt,
+      );
+
+      setHasUnsavedChanges(false);
+    } catch (requestError) {
+      setSaveError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to save the release.",
+      );
+    } finally {
+      setSaveLoading(false);
     }
   }
 
@@ -394,6 +579,8 @@ export default function LiteDashboard() {
     setGenerationLoading(false);
     setGenerationError("");
     setReleaseNotes(null);
+
+    resetSavedReleaseIdentity();
 
     setCurrentStep(1);
   }
@@ -551,7 +738,24 @@ export default function LiteDashboard() {
                 }
                 error={generationError}
                 releaseNotes={releaseNotes}
-                onChange={setReleaseNotes}
+                onChange={
+                  handleReleaseNotesChange
+                }
+                savedStatus={
+                  savedReleaseStatus
+                }
+                saveLoading={saveLoading}
+                saveError={saveError}
+                hasUnsavedChanges={
+                  hasUnsavedChanges
+                }
+                savedAt={savedAt}
+                onSaveDraft={() =>
+                  saveLiteRelease("draft")
+                }
+                onSaveFinal={() =>
+                  saveLiteRelease("final")
+                }
                 onBackToReview={() => {
                   setGenerationError("");
                   setCurrentStep(3);
