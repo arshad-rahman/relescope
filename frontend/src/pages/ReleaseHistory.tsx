@@ -779,16 +779,23 @@ export default function ReleaseHistory() {
                             Open release
                           </button>
 
-                          {release.experienceMode ===
-                            "lite" && (
-                            <Link
-                              to={`/lite?releaseId=${release.id}`}
-                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-                            >
-                              Continue in Lite
-                              <ArrowUpRight className="h-4 w-4" />
-                            </Link>
-                          )}
+                          <Link
+                            to={
+                              release.experienceMode ===
+                              "lite"
+                                ? `/lite?releaseId=${release.id}`
+                                : `/dashboard?releaseId=${release.id}`
+                            }
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                          >
+                            Continue in{" "}
+                            {release.experienceMode ===
+                            "lite"
+                              ? "Lite"
+                              : "Advanced"}
+
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Link>
                         </div>
                       </article>
                     );
