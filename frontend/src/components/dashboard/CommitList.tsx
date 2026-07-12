@@ -15,7 +15,12 @@ type Props = {
   token: string;
   repositoryFullName: string;
   branch: string;
-  onSelectionChange: (commits: Commit[]) => void;
+
+  initialSelectedCommits?: Commit[];
+
+  onSelectionChange: (
+    commits: Commit[],
+  ) => void;
 };
 
 type AuthorOption = {
@@ -46,6 +51,7 @@ export default function CommitList({
   token,
   repositoryFullName,
   branch,
+  initialSelectedCommits = [],
   onSelectionChange,
 }: Props) {
   const [commits, setCommits] =
@@ -94,10 +100,49 @@ export default function CommitList({
           return;
         }
 
-        setCommits(data);
+        const liveCommitIds =
+          new Set(
+            data.map(
+              (commit) => commit.id,
+            ),
+          );
+
+        const missingSavedCommits =
+          initialSelectedCommits.filter(
+            (commit) =>
+              !liveCommitIds.has(
+                commit.id,
+              ),
+          );
+
+        const mergedCommits = [
+          ...data,
+          ...missingSavedCommits,
+        ];
+
+        const mergedCommitIds =
+          new Set(
+            mergedCommits.map(
+              (commit) => commit.id,
+            ),
+          );
+
+        setCommits(mergedCommits);
         setAuthorFilter("all");
         setSearch("");
-        setSelectedIds([]);
+
+        setSelectedIds(
+          initialSelectedCommits
+            .map(
+              (commit) => commit.id,
+            )
+            .filter(
+              (commitId) =>
+                mergedCommitIds.has(
+                  commitId,
+                ),
+            ),
+        );
       } catch (requestError) {
         if (!active) {
           return;

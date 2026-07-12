@@ -2,11 +2,18 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import {
+  AlertCircle,
+  LoaderCircle,
+} from "lucide-react";
+
+import {
   Link,
+  useSearchParams,
 } from "react-router-dom";
 
 import Navbar from "../components/layout/Navbar";
@@ -27,6 +34,7 @@ import { generateReleaseNotes } from "../services/release";
 
 import {
   createSavedRelease,
+  getSavedRelease,
   updateSavedRelease,
 } from "../services/savedRelease";
 
@@ -43,6 +51,50 @@ import type {
   SavedReleaseCreateInput,
   SavedReleaseStatus,
 } from "../types/savedRelease";
+
+
+function haveSameCommitIds(
+  currentIds: string[],
+  nextIds: string[],
+): boolean {
+  if (
+    currentIds.length !==
+    nextIds.length
+  ) {
+    return false;
+  }
+
+  const currentIdSet =
+    new Set(currentIds);
+
+  return nextIds.every(
+    (commitId) =>
+      currentIdSet.has(commitId),
+  );
+}
+
+
+function getConfigurationTitle(
+  title: string,
+  version: string,
+): string {
+  const trimmedVersion =
+    version.trim();
+
+  if (!trimmedVersion) {
+    return title;
+  }
+
+  const suffix =
+    ` ${trimmedVersion}`;
+
+  return title.endsWith(suffix)
+    ? title.slice(
+        0,
+        -suffix.length,
+      )
+    : title;
+}
 
 
 function normalizeAuthorName(
@@ -62,6 +114,14 @@ export default function Dashboard() {
     user,
     logout,
   } = useAuth();
+
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
+  const resumeReleaseId =
+    searchParams.get("releaseId");
 
 
   const [
@@ -96,6 +156,14 @@ export default function Dashboard() {
     selectedCommits,
     setSelectedCommits,
   ] = useState<Commit[]>([]);
+
+  const [
+    initialSelectedCommits,
+    setInitialSelectedCommits,
+  ] = useState<Commit[]>([]);
+
+  const selectedCommitIdsRef =
+    useRef<string[]>([]);
 
 
   const [
@@ -181,6 +249,18 @@ export default function Dashboard() {
     setHasUnsavedChanges,
   ] = useState(false);
 
+  const [
+    resumeLoading,
+    setResumeLoading,
+  ] = useState(
+    Boolean(resumeReleaseId),
+  );
+
+  const [
+    resumeError,
+    setResumeError,
+  ] = useState("");
+
 
   useEffect(() => {
     let active = true;
@@ -232,6 +312,185 @@ export default function Dashboard() {
       active = false;
     };
   }, [token]);
+
+
+  useEffect(() => {
+    if (!resumeReleaseId) {
+      setResumeLoading(false);
+      setResumeError("");
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    const ownerLogin =
+      user.login;
+
+    const releaseId =
+      Number(resumeReleaseId);
+
+    if (
+      !Number.isInteger(releaseId) ||
+      releaseId <= 0
+    ) {
+      setResumeLoading(false);
+
+      setResumeError(
+        "The saved release ID is invalid.",
+      );
+
+      return;
+    }
+
+    let active = true;
+
+    async function resumeSavedRelease() {
+      setResumeLoading(true);
+      setResumeError("");
+
+      try {
+        const savedRelease =
+          await getSavedRelease(
+            releaseId,
+            ownerLogin,
+          );
+
+        if (!active) {
+          return;
+        }
+
+        if (
+          savedRelease.experienceMode !==
+          "advanced"
+        ) {
+          throw new Error(
+            "This release belongs to the " +
+            "Lite workspace.",
+          );
+        }
+
+        selectedCommitIdsRef.current = [
+          ...savedRelease.selectedCommitIds,
+        ];
+
+        setInitialSelectedCommits([
+          ...savedRelease.selectedCommits,
+        ]);
+
+        setSelectedCommits([
+          ...savedRelease.selectedCommits,
+        ]);
+
+        setRepositoryFullName(
+          savedRelease.repository,
+        );
+
+        setBranch(
+          savedRelease.branch,
+        );
+
+        setReleaseTitle(
+          getConfigurationTitle(
+            savedRelease.title,
+            savedRelease.version,
+          ),
+        );
+
+        setVersion(
+          savedRelease.version,
+        );
+
+        setEnvironment(
+          savedRelease.environment,
+        );
+
+        setGenerateFor(
+          savedRelease.generateFor,
+        );
+
+        setSelectedAuthor(
+          savedRelease.selectedAuthor,
+        );
+
+        setReleaseNotes({
+          title: savedRelease.title,
+          summary: savedRelease.summary,
+
+          features: [
+            ...savedRelease.features,
+          ],
+
+          fixes: [
+            ...savedRelease.fixes,
+          ],
+
+          improvements: [
+            ...savedRelease.improvements,
+          ],
+
+          documentation: [
+            ...savedRelease.documentation,
+          ],
+
+          maintenance: [
+            ...savedRelease.maintenance,
+          ],
+
+          contributors: [
+            ...savedRelease.contributors,
+          ],
+
+          totalCommits:
+            savedRelease.totalCommits,
+        });
+
+        setSavedReleaseId(
+          savedRelease.id,
+        );
+
+        setSavedReleaseStatus(
+          savedRelease.status,
+        );
+
+        setSavedAt(
+          savedRelease.updatedAt,
+        );
+
+        setHasUnsavedChanges(false);
+
+        setLoading(false);
+        setGenerationError("");
+
+        setSaveLoading(false);
+        setSaveError("");
+      } catch (requestError) {
+        if (!active) {
+          return;
+        }
+
+        setResumeError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to resume the release.",
+        );
+      } finally {
+        if (active) {
+          setResumeLoading(false);
+        }
+      }
+    }
+
+    void resumeSavedRelease();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    user,
+    resumeReleaseId,
+  ]);
 
 
   const selectedRepository =
@@ -345,22 +604,37 @@ export default function Dashboard() {
       (
         nextCommits: Commit[],
       ) => {
+        const nextCommitIds =
+          nextCommits.map(
+            (commit) => commit.id,
+          );
+
+        const selectionUnchanged =
+          haveSameCommitIds(
+            selectedCommitIdsRef.current,
+            nextCommitIds,
+          );
+
+        selectedCommitIdsRef.current = [
+          ...nextCommitIds,
+        ];
+
         setSelectedCommits(
           nextCommits,
         );
+
+        if (selectionUnchanged) {
+          return;
+        }
 
         setSelectedAuthor("");
 
         resetGeneratedRelease();
 
-        setSavedReleaseId(null);
-        setSavedReleaseStatus(null);
-
         setSaveLoading(false);
         setSaveError("");
 
-        setSavedAt("");
-        setHasUnsavedChanges(false);
+        setHasUnsavedChanges(true);
       },
       [],
     );
@@ -385,8 +659,18 @@ export default function Dashboard() {
 
 
     setSelectedCommits([]);
+    setInitialSelectedCommits([]);
+
+    selectedCommitIdsRef.current = [];
 
     setSelectedAuthor("");
+
+    setSearchParams(
+      {},
+      {
+        replace: true,
+      },
+    );
 
     resetAdvancedResult();
   }
@@ -398,8 +682,18 @@ export default function Dashboard() {
     setBranch(nextBranch);
 
     setSelectedCommits([]);
+    setInitialSelectedCommits([]);
+
+    selectedCommitIdsRef.current = [];
 
     setSelectedAuthor("");
+
+    setSearchParams(
+      {},
+      {
+        replace: true,
+      },
+    );
 
     resetAdvancedResult();
   }
@@ -472,7 +766,7 @@ export default function Dashboard() {
   ) {
     if (
       !user ||
-      !selectedRepository ||
+      !repositoryFullName ||
       !branch ||
       !releaseNotes ||
       selectedCommits.length === 0
@@ -489,7 +783,7 @@ export default function Dashboard() {
       status: nextStatus,
 
       repository:
-        selectedRepository.fullName,
+        repositoryFullName,
 
       branch,
 
@@ -644,7 +938,37 @@ export default function Dashboard() {
         </div>
 
 
-        <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+        {resumeError && (
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-red-400/20 bg-red-400/[0.08] px-5 py-4 text-sm text-red-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            {resumeError}
+          </div>
+        )}
+
+        {resumeLoading && (
+          <section className="mb-8 flex min-h-52 items-center justify-center rounded-2xl border border-cyan-400/15 bg-slate-900/60 p-8">
+            <div className="text-center">
+              <LoaderCircle className="mx-auto h-8 w-8 animate-spin text-cyan-300" />
+
+              <h2 className="mt-5 text-xl font-bold text-white">
+                Loading saved release
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Restoring its configuration,
+                commits and generated notes.
+              </p>
+            </div>
+          </section>
+        )}
+
+        <div
+          className={
+            resumeLoading
+              ? "hidden"
+              : "grid gap-8 lg:grid-cols-[1.15fr_0.85fr]"
+          }
+        >
           <div className="space-y-6 rounded-2xl border border-white/10 bg-slate-900/50 p-8">
             <RepositorySelector
               repositories={repositories}
@@ -673,6 +997,9 @@ export default function Dashboard() {
                 repositoryFullName
               }
               branch={branch}
+              initialSelectedCommits={
+                initialSelectedCommits
+              }
               onSelectionChange={
                 handleCommitSelectionChange
               }
