@@ -52,6 +52,11 @@ import type {
   SavedReleaseStatus,
 } from "../types/savedRelease";
 
+import {
+  isAdvancedCommitRange,
+  type AdvancedCommitRange,
+} from "../utils/advancedCommitRange";
+
 
 function haveSameCommitIds(
   currentIds: string[],
@@ -108,6 +113,61 @@ function normalizeAuthorName(
 }
 
 
+function toDateInputValue(
+  value: string | null,
+): string {
+  return value
+    ? value.slice(0, 10)
+    : "";
+}
+
+
+function toUtcDateBoundary(
+  value: string,
+  endOfDay: boolean,
+): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  );
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+
 export default function Dashboard() {
   const {
     token,
@@ -150,6 +210,26 @@ export default function Dashboard() {
 
   const [branch, setBranch] =
     useState("");
+
+
+  const [
+    commitRange,
+    setCommitRange,
+  ] = useState<AdvancedCommitRange>(
+    "all",
+  );
+
+
+  const [
+    dateFrom,
+    setDateFrom,
+  ] = useState("");
+
+
+  const [
+    dateTo,
+    setDateTo,
+  ] = useState("");
 
 
   const [
@@ -389,6 +469,33 @@ export default function Dashboard() {
 
         setBranch(
           savedRelease.branch,
+        );
+
+        const restoredRange =
+          isAdvancedCommitRange(
+            savedRelease.releaseRange,
+          )
+            ? savedRelease.releaseRange
+            : "all";
+
+        setCommitRange(
+          restoredRange,
+        );
+
+        setDateFrom(
+          restoredRange === "custom"
+            ? toDateInputValue(
+                savedRelease.dateFrom,
+              )
+            : "",
+        );
+
+        setDateTo(
+          restoredRange === "custom"
+            ? toDateInputValue(
+                savedRelease.dateTo,
+              )
+            : "",
         );
 
         setReleaseTitle(
@@ -640,6 +747,39 @@ export default function Dashboard() {
     );
 
 
+  function handleCommitRangeChange(
+    nextRange: AdvancedCommitRange,
+    nextDateFrom: string,
+    nextDateTo: string,
+  ) {
+    setCommitRange(
+      nextRange,
+    );
+
+    setDateFrom(
+      nextDateFrom,
+    );
+
+    setDateTo(
+      nextDateTo,
+    );
+
+    setSelectedCommits([]);
+    setInitialSelectedCommits([]);
+
+    selectedCommitIdsRef.current = [];
+
+    setSelectedAuthor("");
+
+    resetGeneratedRelease();
+
+    setSaveLoading(false);
+    setSaveError("");
+
+    setHasUnsavedChanges(true);
+  }
+
+
   function handleRepositoryChange(
     fullName: string,
   ) {
@@ -656,6 +796,10 @@ export default function Dashboard() {
     setBranch(
       repository?.defaultBranch ?? "",
     );
+
+    setCommitRange("all");
+    setDateFrom("");
+    setDateTo("");
 
 
     setSelectedCommits([]);
@@ -680,6 +824,10 @@ export default function Dashboard() {
     nextBranch: string,
   ) {
     setBranch(nextBranch);
+
+    setCommitRange("all");
+    setDateFrom("");
+    setDateTo("");
 
     setSelectedCommits([]);
     setInitialSelectedCommits([]);
@@ -799,9 +947,23 @@ export default function Dashboard() {
           ? selectedAuthor
           : "",
 
-      releaseRange: null,
-      dateFrom: null,
-      dateTo: null,
+      releaseRange: commitRange,
+
+      dateFrom:
+        commitRange === "custom"
+          ? toUtcDateBoundary(
+              dateFrom,
+              false,
+            )
+          : null,
+
+      dateTo:
+        commitRange === "custom"
+          ? toUtcDateBoundary(
+              dateTo,
+              true,
+            )
+          : null,
 
       summary: releaseNotes.summary,
       features: releaseNotes.features,
@@ -997,8 +1159,14 @@ export default function Dashboard() {
                 repositoryFullName
               }
               branch={branch}
+              range={commitRange}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
               initialSelectedCommits={
                 initialSelectedCommits
+              }
+              onRangeChange={
+                handleCommitRangeChange
               }
               onSelectionChange={
                 handleCommitSelectionChange
