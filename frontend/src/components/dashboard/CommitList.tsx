@@ -248,6 +248,7 @@ export default function CommitList({
     token,
     repositoryFullName,
     branch,
+    initialSelectedCommits,
   ]);
 
 
