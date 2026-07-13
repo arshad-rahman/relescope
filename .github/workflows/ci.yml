@@ -120,3 +120,116 @@ jobs:
 
       - name: Display migration state
         run: alembic current
+
+  backend-container:
+    name: Backend container checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build backend image
+        run: >-
+          docker build
+          --tag relescope-backend:ci
+          ./backend
+
+      - name: Create database volume
+        run: >-
+          docker volume create
+          relescope-ci-data
+
+      - name: Apply migrations
+        run: |
+          docker run \
+            --rm \
+            --env DATABASE_URL=sqlite:////app/data/relescope.db \
+            --volume relescope-ci-data:/app/data \
+            relescope-backend:ci \
+            alembic upgrade head
+
+      - name: Verify migration state
+        run: |
+          docker run \
+            --rm \
+            --env DATABASE_URL=sqlite:////app/data/relescope.db \
+            --volume relescope-ci-data:/app/data \
+            relescope-backend:ci \
+            alembic current | grep -q "(head)"
+
+      - name: Start backend container
+        run: |
+          docker run \
+            --detach \
+            --name relescope-backend-ci \
+            --publish 8000:8000 \
+            --env DATABASE_URL=sqlite:////app/data/relescope.db \
+            --env AI_PROVIDER=gemini \
+            --env GEMINI_API_KEY=ci-placeholder-not-used \
+            --volume relescope-ci-data:/app/data \
+            relescope-backend:ci
+
+      - name: Wait for container health
+        run: |
+          for attempt in {1..30}; do
+            status="$(
+              docker inspect \
+                --format='{{.State.Health.Status}}' \
+                relescope-backend-ci \
+                2>/dev/null || true
+            )"
+
+            echo "Attempt ${attempt}: ${status:-not-ready}"
+
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+
+            running="$(
+              docker inspect \
+                --format='{{.State.Running}}' \
+                relescope-backend-ci \
+                2>/dev/null || echo false
+            )"
+
+            if [ "$running" != "true" ]; then
+              docker logs relescope-backend-ci
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker logs relescope-backend-ci
+          exit 1
+
+      - name: Test backend endpoints
+        run: |
+          curl -fsS http://127.0.0.1:8000/
+          echo
+          curl -fsS http://127.0.0.1:8000/health
+          echo
+
+      - name: Verify non-root runtime
+        run: |
+          docker exec \
+            relescope-backend-ci \
+            id | grep -q "uid=10001(relescope)"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs relescope-backend-ci || true
+
+      - name: Clean up Docker resources
+        if: always()
+        run: |
+          docker rm \
+            --force \
+            relescope-backend-ci \
+            2>/dev/null || true
+
+          docker volume rm \
+            relescope-ci-data \
+            2>/dev/null || true
