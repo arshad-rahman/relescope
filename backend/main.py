@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,6 +13,31 @@ from app.routers.repository import (
 )
 
 
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://localhost:8080",
+)
+
+
+def get_cors_origins() -> list[str]:
+    configured_origins = os.getenv(
+        "CORS_ORIGINS",
+        "",
+    )
+
+    if not configured_origins.strip():
+        return list(
+            DEFAULT_CORS_ORIGINS,
+        )
+
+    return [
+        origin.strip()
+        for origin
+        in configured_origins.split(",")
+        if origin.strip()
+    ]
+
+
 app = FastAPI(
     title="Relescope API",
     version="0.1.0",
@@ -19,9 +46,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
