@@ -233,3 +233,123 @@ jobs:
           docker volume rm \
             relescope-ci-data \
             2>/dev/null || true
+
+  frontend-container:
+    name: Frontend container checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg VITE_API_URL=http://localhost:8000/api \
+            --tag relescope-frontend:ci \
+            ./frontend
+
+      - name: Start frontend container
+        run: |
+          docker run \
+            --detach \
+            --name relescope-frontend-ci \
+            --publish 8080:8080 \
+            relescope-frontend:ci
+
+      - name: Wait for frontend health
+        run: |
+          for attempt in {1..30}; do
+            status="$(
+              docker inspect \
+                --format='{{.State.Health.Status}}' \
+                relescope-frontend-ci \
+                2>/dev/null || true
+            )"
+
+            echo "Attempt ${attempt}: ${status:-not-ready}"
+
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+
+            running="$(
+              docker inspect \
+                --format='{{.State.Running}}' \
+                relescope-frontend-ci \
+                2>/dev/null || echo false
+            )"
+
+            if [ "$running" != "true" ]; then
+              docker logs relescope-frontend-ci
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker logs relescope-frontend-ci
+          exit 1
+
+      - name: Test frontend health endpoint
+        run: |
+          response="$(
+            curl -fsS \
+              http://127.0.0.1:8080/healthz
+          )"
+
+          test "$response" = "healthy"
+
+      - name: Test SPA routes
+        run: |
+          curl -fsS \
+            http://127.0.0.1:8080/ \
+            >/dev/null
+
+          curl -fsS \
+            http://127.0.0.1:8080/connect \
+            >/dev/null
+
+          curl -fsS \
+            http://127.0.0.1:8080/dashboard \
+            >/dev/null
+
+          curl -fsS \
+            http://127.0.0.1:8080/history \
+            >/dev/null
+
+      - name: Verify backend API URL in bundle
+        run: |
+          docker exec \
+            relescope-frontend-ci \
+            grep -R -q \
+              "http://localhost:8000/api" \
+              /usr/share/nginx/html/assets
+
+      - name: Verify non-root runtime
+        run: |
+          runtime_user="$(
+            docker exec \
+              relescope-frontend-ci \
+              id -u
+          )"
+
+          echo "Runtime UID: ${runtime_user}"
+
+          test "$runtime_user" != "0"
+
+      - name: Show frontend logs on failure
+        if: failure()
+        run: |
+          docker logs \
+            relescope-frontend-ci \
+            || true
+
+      - name: Clean up frontend container
+        if: always()
+        run: |
+          docker rm \
+            --force \
+            relescope-frontend-ci \
+            2>/dev/null || true

@@ -46,6 +46,32 @@ class TestApplicationHealth(unittest.TestCase):
         )
 
 
+    def test_frontend_container_cors(
+        self,
+    ) -> None:
+        response = self.client.options(
+            "/health",
+            headers={
+                "Origin":
+                    "http://localhost:8080",
+                "Access-Control-Request-Method":
+                    "GET",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertEqual(
+            response.headers.get(
+                "access-control-allow-origin",
+            ),
+            "http://localhost:8080",
+        )
+
+
     def test_openapi_document(self) -> None:
         response = self.client.get(
             "/openapi.json",
