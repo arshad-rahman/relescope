@@ -1,0 +1,87 @@
+name: relescope
+
+services:
+  migrate:
+    build:
+      context: ./backend
+
+    image: relescope-backend:compose
+
+    command:
+      - alembic
+      - upgrade
+      - head
+
+    environment:
+      DATABASE_URL: sqlite:////app/data/relescope.db
+
+    volumes:
+      - backend-data:/app/data
+
+    networks:
+      - relescope-network
+
+    restart: "no"
+
+
+  backend:
+    build:
+      context: ./backend
+
+    image: relescope-backend:compose
+
+    env_file:
+      - ./backend/.env
+
+    environment:
+      DATABASE_URL: sqlite:////app/data/relescope.db
+      CORS_ORIGINS: >-
+        http://localhost:5173,http://localhost:8080
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - backend-data:/app/data
+
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+    networks:
+      - relescope-network
+
+    restart: unless-stopped
+
+
+  frontend:
+    build:
+      context: ./frontend
+
+      args:
+        VITE_API_URL: http://localhost:8000/api
+
+    image: relescope-frontend:compose
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - relescope-network
+
+    restart: unless-stopped
+
+
+volumes:
+  backend-data:
+    name: relescope-backend-data
+
+
+networks:
+  relescope-network:
+    name: relescope-network
+    driver: bridge
