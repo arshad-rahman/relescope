@@ -99,6 +99,41 @@ def _unique_strings(
     return unique_values
 
 
+def _unique_contributor_names(
+    values: list[str],
+) -> list[str]:
+    unique_values: list[str] = []
+    seen_identities: set[str] = set()
+
+    for value in values:
+        cleaned_value = " ".join(
+            value.split()
+        ).strip()
+
+        if not cleaned_value:
+            continue
+
+        identity = _normalize_author_name(
+            cleaned_value
+        )
+
+        if (
+            not identity
+            or identity in seen_identities
+        ):
+            continue
+
+        seen_identities.add(
+            identity
+        )
+
+        unique_values.append(
+            cleaned_value
+        )
+
+    return unique_values
+
+
 def _release_item_texts(
     items: list[AIReleaseItem],
 ) -> list[str]:
@@ -157,11 +192,13 @@ async def generate_release_notes(
         )
     )
 
-    contributors = _unique_strings(
-        [
-            commit.author
-            for commit in commits
-        ]
+    contributors = (
+        _unique_contributor_names(
+            [
+                commit.author
+                for commit in commits
+            ]
+        )
     )
 
     return ReleaseNotesResponse(
