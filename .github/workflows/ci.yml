@@ -243,18 +243,90 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Build backend image
+        run: |
+          docker build \
+            --tag relescope-backend:frontend-ci \
+            ./backend
+
       - name: Build frontend image
         run: |
           docker build \
-            --build-arg VITE_API_URL=http://localhost:8000/api \
+            --build-arg VITE_API_URL=/api \
             --tag relescope-frontend:ci \
             ./frontend
+
+      - name: Create integration resources
+        run: |
+          docker network create \
+            relescope-frontend-ci-network
+
+          docker volume create \
+            relescope-frontend-ci-data
+
+      - name: Apply database migrations
+        run: |
+          docker run \
+            --rm \
+            --network relescope-frontend-ci-network \
+            --env DATABASE_URL=sqlite:////app/data/relescope.db \
+            --volume relescope-frontend-ci-data:/app/data \
+            relescope-backend:frontend-ci \
+            alembic upgrade head
+
+      - name: Start backend container
+        run: |
+          docker run \
+            --detach \
+            --name relescope-backend-frontend-ci \
+            --network relescope-frontend-ci-network \
+            --network-alias backend \
+            --env DATABASE_URL=sqlite:////app/data/relescope.db \
+            --env AI_PROVIDER=gemini \
+            --env GEMINI_API_KEY=ci-placeholder-not-used \
+            --volume relescope-frontend-ci-data:/app/data \
+            relescope-backend:frontend-ci
+
+      - name: Wait for backend health
+        run: |
+          for attempt in {1..30}; do
+            status="$(
+              docker inspect \
+                --format='{{.State.Health.Status}}' \
+                relescope-backend-frontend-ci \
+                2>/dev/null || true
+            )"
+
+            echo "Backend attempt ${attempt}: ${status:-not-ready}"
+
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+
+            running="$(
+              docker inspect \
+                --format='{{.State.Running}}' \
+                relescope-backend-frontend-ci \
+                2>/dev/null || echo false
+            )"
+
+            if [ "$running" != "true" ]; then
+              docker logs relescope-backend-frontend-ci
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          docker logs relescope-backend-frontend-ci
+          exit 1
 
       - name: Start frontend container
         run: |
           docker run \
             --detach \
             --name relescope-frontend-ci \
+            --network relescope-frontend-ci-network \
             --publish 8080:8080 \
             relescope-frontend:ci
 
@@ -268,7 +340,7 @@ jobs:
                 2>/dev/null || true
             )"
 
-            echo "Attempt ${attempt}: ${status:-not-ready}"
+            echo "Frontend attempt ${attempt}: ${status:-not-ready}"
 
             if [ "$status" = "healthy" ]; then
               exit 0
@@ -303,53 +375,74 @@ jobs:
 
       - name: Test SPA routes
         run: |
-          curl -fsS \
-            http://127.0.0.1:8080/ \
-            >/dev/null
+          curl -fsS http://127.0.0.1:8080/ >/dev/null
+          curl -fsS http://127.0.0.1:8080/connect >/dev/null
+          curl -fsS http://127.0.0.1:8080/dashboard >/dev/null
+          curl -fsS http://127.0.0.1:8080/history >/dev/null
 
+      - name: Test backend through Nginx
+        run: |
           curl -fsS \
-            http://127.0.0.1:8080/connect \
-            >/dev/null
+            "http://127.0.0.1:8080/api/saved-releases?owner_login=ci-smoke-test&limit=1"
 
-          curl -fsS \
-            http://127.0.0.1:8080/dashboard \
-            >/dev/null
+          echo
 
-          curl -fsS \
-            http://127.0.0.1:8080/history \
-            >/dev/null
-
-      - name: Verify backend API URL in bundle
+      - name: Verify portable API URL in bundle
         run: |
           docker exec \
             relescope-frontend-ci \
-            grep -R -q \
-              "http://localhost:8000/api" \
-              /usr/share/nginx/html/assets
+            sh -c \
+            '! grep -R -q "http://localhost:8000/api" /usr/share/nginx/html/assets'
+
+          docker exec \
+            relescope-frontend-ci \
+            sh -c \
+            'grep -R -q "/api" /usr/share/nginx/html/assets'
 
       - name: Verify non-root runtime
         run: |
-          runtime_user="$(
+          backend_uid="$(
+            docker exec \
+              relescope-backend-frontend-ci \
+              id -u
+          )"
+
+          frontend_uid="$(
             docker exec \
               relescope-frontend-ci \
               id -u
           )"
 
-          echo "Runtime UID: ${runtime_user}"
+          echo "Backend runtime UID: ${backend_uid}"
+          echo "Frontend runtime UID: ${frontend_uid}"
 
-          test "$runtime_user" != "0"
+          test "$backend_uid" != "0"
+          test "$frontend_uid" != "0"
 
-      - name: Show frontend logs on failure
+      - name: Show container logs on failure
         if: failure()
         run: |
+          docker logs \
+            relescope-backend-frontend-ci \
+            || true
+
           docker logs \
             relescope-frontend-ci \
             || true
 
-      - name: Clean up frontend container
+      - name: Clean up integration resources
         if: always()
         run: |
           docker rm \
             --force \
             relescope-frontend-ci \
+            relescope-backend-frontend-ci \
+            2>/dev/null || true
+
+          docker volume rm \
+            relescope-frontend-ci-data \
+            2>/dev/null || true
+
+          docker network rm \
+            relescope-frontend-ci-network \
             2>/dev/null || true

@@ -59,7 +59,7 @@ services:
       context: ./frontend
 
       args:
-        VITE_API_URL: http://localhost:8000/api
+        VITE_API_URL: /api
 
     image: relescope-frontend:compose
 
