@@ -4,9 +4,9 @@
 
 ### Your Git history, beautifully summarized.
 
-**An AI-powered release notes generator built from real GitHub commits.**
+**A local-first, self-hosted AI release notes generator built from real GitHub commits.**
 
-Relescope connects to GitHub, loads repository activity, lets developers choose the commits that belong to a release, and transforms them into structured, editable release notes.
+Relescope connects to GitHub, loads repository activity, lets developers choose the commits that belong to a release, and transforms them into structured, editable release notes. Users bring their own credentials and run the complete stack locally through Docker Compose.
 
 <br />
 
@@ -25,6 +25,7 @@ Relescope connects to GitHub, loads repository activity, lets developers choose 
 [Features](#-features) •
 [Architecture](#-architecture) •
 [Quick Start](#-quick-start-with-docker-compose) •
+[Gemini API Key](#get-a-free-gemini-api-key) •
 [Development](#-local-development) •
 [CI/CD](#-cicd-and-release-engineering) •
 [API](#-api-reference) •
@@ -47,6 +48,8 @@ Writing release notes manually usually requires someone to:
 6. Format and distribute the final release notes.
 
 Relescope automates this workflow using live GitHub repository data and an AI provider.
+
+Relescope is intentionally **local-first and self-hosted**. Each user runs the application on their own computer and supplies their own read-only GitHub token and AI provider key. No shared hosted Relescope account or centrally managed AI key is required.
 
 It supports two release-generation experiences:
 
@@ -322,7 +325,6 @@ relescope/
 │       └── publish-images.yml
 │
 ├── backend/
-│   ├── alembic/
 │   ├── app/
 │   │   ├── models/
 │   │   ├── routers/
@@ -378,7 +380,48 @@ Install:
 - Docker Desktop or Docker Engine with Compose
 - A GitHub account
 - A fine-grained GitHub personal access token
-- A Gemini API key or OpenAI API key
+- A free-tier Gemini API key or an OpenAI API key
+
+### Get a free Gemini API key
+
+Gemini is the recommended provider for trying Relescope locally without purchasing API credits.
+
+1. Open the [Google AI Studio API Keys page](https://aistudio.google.com/app/apikey).
+2. Sign in with your Google account.
+3. Select **Create API key**.
+4. Select an existing personal Google Cloud project or create a new one.
+5. Copy the generated key and keep it private.
+6. Do not enable paid billing unless you intentionally want paid API usage.
+
+Configure the key in `backend/.env`:
+
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=paste_your_private_key_here
+```
+
+Never place the key in:
+
+```text
+frontend source code
+VITE_ environment variables
+Dockerfiles
+compose.yaml
+Git commits
+GitHub issues
+screenshots
+chat messages
+```
+
+The Gemini API Free tier supports selected models with limited quotas and rate limits. Model availability, limits, and regional access may change.
+
+Official references:
+
+- [Gemini API key documentation](https://ai.google.dev/gemini-api/docs/api-key)
+- [Gemini API pricing and Free tier](https://ai.google.dev/gemini-api/docs/pricing)
+- [Google AI Studio usage dashboard](https://aistudio.google.com/app/usage)
+
+> **Free-tier data notice:** Do not send passwords, API keys, confidential customer data, sensitive production information, or private source code that you are not permitted to share with an external AI provider.
 
 ### 1. Clone the repository
 
@@ -393,7 +436,7 @@ cd relescope
 cp backend/.env.example backend/.env
 ```
 
-For Gemini:
+For Gemini, using the key created in Google AI Studio:
 
 ```env
 AI_PROVIDER=gemini
@@ -627,6 +670,8 @@ http://localhost:5173
 | `CORS_ORIGINS` | No | Local ports `5173` and `8080` | Comma-separated allowed origins. |
 
 ### Gemini variables
+
+See [Get a free Gemini API key](#get-a-free-gemini-api-key) before configuring these values.
 
 | Variable | Required | Default | Description |
 |---|---:|---|---|
@@ -1121,7 +1166,7 @@ Version `0.1.0` currently has these limitations:
 - There is no Relescope user-account or team-workspace system.
 - The backend uses SQLite, which is designed for the current single-instance deployment model.
 - Rate limiting and per-user AI usage quotas are not implemented yet.
-- Public cloud deployment is not included in `v0.1.0`; public container images are available for deployment.
+- Relescope is intentionally distributed as a local-first application; users run it with their own GitHub and AI credentials.
 - Generated notes cannot yet be published directly to GitHub Releases.
 - Scheduled weekly or monthly digests are not implemented.
 - Multi-repository release generation is not implemented.
@@ -1157,7 +1202,7 @@ Version `0.1.0` currently has these limitations:
 
 ### Planned
 
-- [ ] Public deployment from GHCR images
+- [ ] Optional self-hosting guide using the published GHCR images
 - [ ] Production database strategy and automated backups
 - [ ] Rate limiting and AI usage controls
 - [ ] Application metrics and centralized logs
@@ -1241,7 +1286,7 @@ DevOps Engineer • Cloud Infrastructure Engineer • Linux System Administrator
 
 ## ⭐ Support
 
-Relescope is a DevOps portfolio project built to solve a real software-delivery workflow problem.
+Relescope is a local-first DevOps portfolio project built to solve a real software-delivery workflow problem without requiring a centrally hosted service.
 
 A GitHub star helps others discover the project.
 
