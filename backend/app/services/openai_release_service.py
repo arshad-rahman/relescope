@@ -134,7 +134,6 @@ def _build_input(
                 "id": commit.id,
                 "message": commit.message[:1500],
                 "author": commit.author,
-                "author_email": commit.author_email,
                 "date": commit.date,
             }
             for commit in commits
