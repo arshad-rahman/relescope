@@ -1,7 +1,7 @@
 {
   "name": "relescope-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -30,7 +30,6 @@
     "react-spinners": "^0.17.0",
     "react-type-animation": "^3.2.0",
     "react-wrap-balancer": "^1.1.1",
-    "shadcn": "^4.13.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.2",
